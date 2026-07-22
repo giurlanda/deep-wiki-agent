@@ -1,0 +1,86 @@
+[project]
+name = "deep-wiki-agent"
+version = "0.1.0"
+description = "LangChain deepagents that maintain and consult a wiki knowledge base in Open Knowledge Format (OKF)."
+readme = "README.md"
+authors = [
+    { name = "Hawk", email = "francesco.giurlanda@gmail.com" }
+]
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+keywords = ["langchain", "deepagents", "okf", "knowledge-base", "wiki", "agent"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+dependencies = [
+    "deepagents>=0.6.5",
+    "langchain>=1.0,<2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/giurlanda/deep-wiki-agent"
+Repository = "https://github.com/giurlanda/deep-wiki-agent"
+Documentation = "https://giurlanda.github.io/deep-wiki-agent/"
+Changelog = "https://github.com/giurlanda/deep-wiki-agent/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+docs = [
+    # Pinned below 2.0: MkDocs 2.0 removes the plugin system, which mkdocstrings
+    # and mkdocs-material both depend on.
+    "mkdocs>=1.6,<2.0",
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.26",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pyyaml>=6.0.3",
+    "ruff>=0.8",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.0,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+# The okf-wiki skill ships as package data: both factories mount it for the
+# agent, so a wheel without it is a broken install.
+source-include = ["src/deep_wiki_agent/skills/**"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "ANN401",  # Any is the right type for **kwargs passed straight through
+    "COM812",  # conflicts with the formatter
+    "D203",    # incompatible with D211
+    "D213",    # incompatible with D212
+    "PLR0913", # factories are configuration surfaces; many kwargs is the point
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests: no annotations/docstrings required; function-local imports keep a
+# fixture's dependencies next to it; private attribute access is the point of
+# the wiring assertions.
+"tests/*" = ["ANN", "D", "INP001", "PLC0415", "PLR2004", "S101", "SLF001", "TC"]
+"examples/*" = ["D", "INP001", "T201"]
+"src/deep_wiki_agent/skills/*" = ["ALL"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
