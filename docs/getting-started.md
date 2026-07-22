@@ -61,8 +61,8 @@ Use one `thread_id` per working session so the agent keeps its context across
 turns.
 
 !!! tip "Supervise the first ingests"
-    The skill has the agent discuss takeaways with you before writing, unless
-    you ask for an unsupervised batch. One confirmation round here prevents a
+    The agent discusses takeaways with you before writing, unless you ask for
+    an unsupervised batch. One confirmation round here prevents a
     misunderstanding from propagating into a dozen pages.
 
 ## Query a wiki
@@ -158,11 +158,16 @@ for error in report["errors"]:
 
 Pass `fix=True` to normalize malformed timestamps in place.
 
-The same validator is a standalone, dependency-free script inside the skill:
+The same validator is stdlib-only and runnable from a shell:
 
 ```bash
-python "$(python -c 'import deep_wiki_agent as d; print(d.okf_wiki_skill_dir())')/scripts/okf_lint.py" ./my-wiki
+python -m deep_wiki_agent.okf_lint ./my-wiki          # report
+python -m deep_wiki_agent.okf_lint ./my-wiki --fix    # normalize timestamps
+python -m deep_wiki_agent.okf_lint ./my-wiki --json   # machine-readable
 ```
+
+It exits `1` when the bundle has errors, so it drops straight into CI or a
+pre-commit hook.
 
 ## Maintain the wiki over time
 

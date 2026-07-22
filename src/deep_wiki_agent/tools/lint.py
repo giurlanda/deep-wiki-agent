@@ -1,31 +1,24 @@
 """OKF conformance linting, exposed as a tool.
 
-The ``okf-wiki`` skill tells the agent to run ``scripts/okf_lint.py`` before
-declaring a write operation complete. A deep agent has no shell, so it cannot
-execute that script itself. This module loads the very same script as a Python
-module and wraps its ``lint()`` function in a LangChain tool bound to one
-bundle, so the instruction the skill gives is actually executable.
+The manager agent is told to validate the bundle before declaring a write
+complete, but a deep agent has no shell to run a validator with. This module
+wraps :func:`deep_wiki_agent.okf_lint.lint` in a LangChain tool bound to one
+bundle, so that instruction is actually executable.
 
-Keeping the script as the single implementation (rather than reimplementing it
-here) means the skill stays self-contained and usable outside this library,
-while the tool can never drift from it.
+The validator itself is ordinary package code, imported normally — the tool is
+a thin adapter over it, not a second implementation.
 """
 
 from __future__ import annotations
 
-import importlib.util
-import sys
-from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from langchain_core.tools import StructuredTool
 
-from deep_wiki_agent.resources import okf_lint_script
+from deep_wiki_agent.okf_lint import lint
 
 if TYPE_CHECKING:
-    from types import ModuleType
-
     from langchain_core.tools import BaseTool
 
 __all__ = ["OKF_LINT_TOOL_NAME", "create_okf_lint_tool", "run_okf_lint"]
@@ -37,39 +30,13 @@ _MAX_ITEMS_PER_SECTION = 50
 the context window. The counts in the summary line stay exact."""
 
 
-@lru_cache(maxsize=1)
-def _load_lint_module() -> ModuleType:
-    """Import the bundled ``okf_lint.py`` script as a module.
-
-    Returns:
-        The imported module, exposing ``lint(root, fix=False)``.
-
-    Raises:
-        FileNotFoundError: If the script is missing from the installation.
-        ImportError: If the script cannot be loaded as a module.
-    """
-    script = okf_lint_script()
-    module_name = "deep_wiki_agent._vendored_okf_lint"
-    if module_name in sys.modules:
-        return sys.modules[module_name]
-
-    spec = importlib.util.spec_from_file_location(module_name, script)
-    if spec is None or spec.loader is None:
-        msg = f"cannot load the OKF linter from {script}"
-        raise ImportError(msg)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
 def run_okf_lint(wiki_path: str | Path, *, fix: bool = False) -> dict[str, Any]:
     """Validate an OKF bundle on the local filesystem.
 
     Args:
         wiki_path: Directory of the bundle to validate.
-        fix: When ``True``, malformed timestamps are normalized in place
-            (the script's ``--fix`` behavior). ``False`` reports only.
+        fix: When ``True``, malformed timestamps are normalized in place.
+            ``False`` reports only.
 
     Returns:
         A dict with ``errors``, ``warnings`` and ``fixes`` lists, each item a
@@ -83,7 +50,7 @@ def run_okf_lint(wiki_path: str | Path, *, fix: bool = False) -> dict[str, Any]:
         msg = f"not a directory: {root}"
         raise NotADirectoryError(msg)
 
-    errors, warnings, fixes = _load_lint_module().lint(root, fix=fix)
+    errors, warnings, fixes = lint(root, fix=fix)
     return {"errors": errors, "warnings": warnings, "fixes": fixes}
 
 
@@ -146,7 +113,7 @@ def create_okf_lint_tool(wiki_path: str | Path) -> BaseTool:
         """
         try:
             result = run_okf_lint(root, fix=fix)
-        except (NotADirectoryError, FileNotFoundError, ImportError) as exc:
+        except (NotADirectoryError, FileNotFoundError) as exc:
             return f"ERROR: okf_lint could not run: {exc}"
         return _format_report(result)
 
