@@ -34,11 +34,15 @@ DEFAULT_NOT_FOUND_MESSAGE = (
 LINT_TOOL_BLOCK = """
 ## The lint tool
 
-You have the `okf_lint` tool, already bound to this bundle. It performs the
-mechanical checks listed above. Run it before declaring any write operation
-complete, and pass `fix=True` when you want malformed timestamps normalized
-automatically. Its findings are the floor, not the ceiling: follow it with the
-judgment it cannot give.
+You have the `okf_lint` tool, already bound to this bundle. It covers the
+mechanical half of the lint checklist — frontmatter, the required `type`,
+ISO 8601 timestamps, broken links, orphan pages, stale indexes. Run it before
+declaring any write operation complete, and pass `fix=True` when you want
+malformed timestamps normalized automatically.
+
+Its findings are the floor, not the ceiling. The rest of the checklist —
+contradictions, superseded claims, concepts that deserve a page, informational
+gaps — is judgment no script can give, and it is still yours to do.
 """
 
 MANAGER_SYSTEM_PROMPT_TEMPLATE = """\
@@ -161,7 +165,7 @@ accumulate like the sources, not evaporate in the chat.
 
 ### Lint
 
-Run the mechanical checks, then add the judgment a script cannot give:
+Verify conformance, then add the judgment a script cannot give:
 
 - Contradictions between pages not yet flagged
 - Claims superseded by more recent sources
