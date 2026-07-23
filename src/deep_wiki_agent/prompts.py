@@ -36,9 +36,9 @@ LINT_TOOL_BLOCK = """
 
 You have the `okf_lint` tool, already bound to this bundle. It covers the
 mechanical half of the lint checklist — frontmatter, the required `type`,
-ISO 8601 timestamps, broken links, orphan pages, stale indexes. Run it before
-declaring any write operation complete, and pass `fix=True` when you want
-malformed timestamps normalized automatically.
+ISO 8601 timestamps, broken links, absolute links, orphan pages, stale indexes.
+Run it before declaring any write operation complete, and pass `fix=True` when
+you want malformed timestamps normalized automatically.
 
 Its findings are the floor, not the ceiling. The rest of the checklist —
 contradictions, superseded claims, concepts that deserve a page, informational
@@ -90,25 +90,35 @@ them with the user at bootstrap and record them in `AGENTS.md`.
 
 Every concept file is one markdown document with YAML frontmatter. **The only \
 field the spec mandates is `type`.** The rest is this bundle's convention, but \
-respect it for consistency:
+respect it for consistency. Below, an example for a page that lives in \
+`entities/` — every path in it is written relative to that page:
 
 ```yaml
 ---
 type: Document | Entity | Concept | Synthesis | <domain type>
 title: Human-readable title
 description: One sentence, what this page contains.
-resource: raw/annual-report-2025.pdf        # path or URL of the primary source
+resource: ../raw/annual-report-2025.pdf        # path or URL of the primary source
 tags: [finance, 2025]
-timestamp: 2026-07-19T10:30:00Z             # last update, ISO 8601 UTC
-sources: [documents/annual-report-2025.md]  # document pages it derives from
+timestamp: 2026-07-19T10:30:00Z                # last update, ISO 8601 UTC
+sources: [../documents/annual-report-2025.md]  # document pages it derives from
 ---
 ```
 
 Rules:
 
-- Links are **ordinary markdown links** with a path relative to the bundle \
-root: `[customers](/entities/acme-spa.md)`. The graph emerges from the links, \
-not from the directory hierarchy.
+- Links are **ordinary markdown links**, and their path is always **relative \
+to the page that contains them** — never absolute. From `index.md` a document \
+page is `documents/annual-report-2025.md`; from \
+`documents/annual-report-2025.md` an entity is \
+`[customers](../entities/acme-spa.md)` and its source is \
+`../raw/annual-report-2025.pdf`. A leading `/` is an error: relative paths are \
+what keeps the bundle browsable after it is moved, rendered on GitHub, or \
+opened in an editor. The graph emerges from the links, not from the directory \
+hierarchy.
+- Frontmatter fields that hold a path — `resource`, `sources` — follow the \
+same rule: relative to the page that declares them. URLs in `resource` are of \
+course left as they are.
 - `timestamp` is updated on every substantive change to a page.
 - `type` is free-form but **consistent**: list the types in use in \
 `AGENTS.md` and reuse them, do not invent a new one per page.
@@ -169,7 +179,8 @@ Verify conformance, then add the judgment a script cannot give:
 
 - Contradictions between pages not yet flagged
 - Claims superseded by more recent sources
-- Orphan pages (no inbound links) and broken links
+- Orphan pages (no inbound links), broken links, links written as absolute \
+paths instead of relative to their page
 - Concepts cited repeatedly but without a page of their own
 - Missing frontmatter or inconsistent `type` values
 - Informational gaps: what is missing to answer the questions the user asks \
@@ -213,6 +224,8 @@ and is easy to leave half-finished.
 - Read the whole source before writing anything. Partial reads produce pages \
 that look plausible and are wrong.
 - Integrate, do not append.
+- Write every path — links and frontmatter alike — relative to the page it \
+sits on. Count the `../` hops before you write them.
 - Never silently overwrite a claim that a new source contradicts.
 - Cite positions in the source for substantive claims.
 
@@ -277,10 +290,16 @@ whether a page may be stale.
 - `sources` - the document pages this page derives from. Follow these to reach \
 the position-level citations.
 
-Links are **ordinary markdown links** with a path relative to the bundle root: \
-`[customers](/entities/acme-spa.md)`. The graph emerges from the links, not \
-from the directory hierarchy, so a page's neighbours are the pages it links to \
-- not the pages next to it in the same folder.
+Links are **ordinary markdown links**, and their path is **relative to the \
+page that contains them**: in `documents/annual-report-2025.md`, \
+`[customers](../entities/acme-spa.md)` is `{wiki_root}entities/acme-spa.md`. \
+Resolve them from the directory of the page you are reading, not from the \
+bundle root. The path-valued frontmatter fields, `resource` and `sources`, are \
+written the same way.
+
+The graph emerges from the links, not from the directory hierarchy, so a \
+page's neighbours are the pages it links to - not the pages next to it in the \
+same folder.
 
 `index.md` and `log.md` are reserved names: they are structural, not concepts.
 

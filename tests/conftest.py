@@ -9,7 +9,7 @@ import pytest
 INDEX_MD = """\
 # Test wiki
 
-- [concepts](/concepts/index.md)
+- [concepts](concepts/index.md)
 """
 
 CONCEPTS_INDEX_MD = """\

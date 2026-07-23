@@ -52,22 +52,23 @@ Categories other than `documents/entities/concepts/syntheses` are legitimate whe
 
 Every concept file = one markdown document with YAML frontmatter.
 
-**The only field the spec mandates is `type`.** The rest is this bundle's convention, but it must be respected for consistency:
+**The only field the spec mandates is `type`.** The rest is this bundle's convention, but it must be respected for consistency. Below, an example for a page living in `entities/` — every path in it is written relative to that page:
 
 ```yaml
 ---
 type: Document | Entity | Concept | Synthesis | <domain type>
 title: Human-readable title
 description: One sentence, what this page contains.
-resource: raw/annual-report-2025.pdf        # path or URL of the primary source
+resource: ../raw/annual-report-2025.pdf        # path or URL of the primary source
 tags: [finance, 2025]
-timestamp: 2026-07-19T10:30:00Z             # last update, ISO 8601 UTC
-sources: [documents/annual-report-2025.md]  # document pages it derives from
+timestamp: 2026-07-19T10:30:00Z                # last update, ISO 8601 UTC
+sources: [../documents/annual-report-2025.md]  # document pages it derives from
 ---
 ```
 
 Rules:
-- Links are **ordinary markdown links** with a path relative to the bundle root: `[customers](/entities/acme-spa.md)`. The graph emerges from the links, not from the directory hierarchy.
+- Links are **ordinary markdown links**, and their path is always **relative to the page that contains them** — never absolute. From `index.md` a document page is `documents/annual-report-2025.md`; from `documents/annual-report-2025.md` an entity is `[customers](../entities/acme-spa.md)` and its source is `../raw/annual-report-2025.pdf`. A leading `/` is an error: relative paths are what keeps the bundle browsable after it is moved, rendered on GitHub, or opened in an editor. The graph emerges from the links, not from the directory hierarchy.
+- Frontmatter fields that hold a path — `resource`, `sources` — follow the same rule: relative to the page that declares them. URLs in `resource` are left as they are.
 - `timestamp` is updated on every substantive change to the page.
 - `type` is free-form but **consistent**: list the types in use in `AGENTS.md` and reuse them, do not invent a new one per page.
 - No mandatory proprietary field. The bundle must stay readable by any OKF consumer.
@@ -103,7 +104,7 @@ Run the OKF linter, then add the judgment a script cannot give:
 
 - Contradictions between pages not yet flagged
 - Claims superseded by more recent sources
-- Orphan pages (no inbound links) and broken links
+- Orphan pages (no inbound links), broken links, links written as absolute paths instead of relative to their page
 - Concepts cited repeatedly but without a page of their own
 - Missing frontmatter or inconsistent `type` values
 - Informational gaps: what is missing to answer the questions the user asks most
@@ -138,5 +139,5 @@ Entry types: `ingest`, `query`, `lint`, `refactor`.
 
 ## Resources
 
-- `deep_wiki_agent.okf_lint` — conformance validator: frontmatter, broken links, orphan pages, stale indexes, malformed timestamps. Run it as `python -m deep_wiki_agent.okf_lint <bundle> [--fix] [--json]`; `--fix` normalizes malformed timestamps automatically. Agents built by `deep-wiki-agent` get the same validator as their `okf_lint` tool, already bound to their bundle.
+- `deep_wiki_agent.okf_lint` — conformance validator: frontmatter, broken links, absolute links, orphan pages, stale indexes, malformed timestamps. Run it as `python -m deep_wiki_agent.okf_lint <bundle> [--fix] [--json]`; `--fix` normalizes malformed timestamps automatically. Agents built by `deep-wiki-agent` get the same validator as their `okf_lint` tool, already bound to their bundle.
 - `references/okf-spec-notes.md` — summary of the OKF v0.1 spec and of this bundle's choices. Consult it whenever you are unsure about conformance.

@@ -15,6 +15,7 @@ It checks:
 - the recommended conventional fields ``title``, ``description``, ``timestamp``;
 - ISO 8601 timestamps;
 - broken internal markdown links;
+- links written as absolute paths instead of relative to their page;
 - orphan pages (no inbound links);
 - ``index.md`` files that lag behind their directory's contents;
 - reserved names used as concept pages.
@@ -122,9 +123,13 @@ def _collect(root: Path) -> list[Path]:
 def _resolve(root: Path, page: Path, target: str) -> Path | None:
     """Resolve a markdown link target to a local path.
 
+    Absolute (``/``-prefixed) targets are non-conformant — links must be
+    relative to the page holding them — but they are still resolved against the
+    bundle root, so that one malformed link is reported once, as an absolute
+    link, rather than twice with a spurious "broken link" on top.
+
     Args:
-        root: Bundle root, against which absolute (``/``-prefixed) targets
-            resolve — OKF links are bundle-relative, not filesystem-absolute.
+        root: Bundle root, against which absolute targets resolve.
         page: Page holding the link, for relative targets.
         target: The link target, possibly carrying an ``#anchor``.
 
@@ -186,15 +191,32 @@ def _check_timestamp(
 def _check_links(
     root: Path, page: Path, rel: str, text: str, inbound: dict[Path, int]
 ) -> list[Finding]:
-    """Report broken links and count inbound links into ``inbound``."""
+    """Report broken and absolute links, and count inbound links into ``inbound``.
+
+    A link that points where it should but is written from the bundle root is
+    still a defect: move the bundle, render it on GitHub or open it in an
+    editor, and it stops resolving. It is reported as an absolute link, and its
+    target — which does exist — still counts as an inbound link, so the page it
+    points to is not also flagged an orphan.
+    """
     errors: list[Finding] = []
     for label, target in LINK_RE.findall(text):
         dest = _resolve(root, page, target)
         if dest is None:
             continue
-        if not dest.exists():
+        if target.lstrip().startswith("/"):
+            errors.append(
+                {
+                    "file": rel,
+                    "msg": (
+                        f"absolute link: [{label}]({target}) - "
+                        "write the path relative to this page"
+                    ),
+                }
+            )
+        elif not dest.exists():
             errors.append({"file": rel, "msg": f"broken link: [{label}]({target})"})
-        elif dest in inbound and dest != page.resolve():
+        if dest.exists() and dest in inbound and dest != page.resolve():
             inbound[dest] += 1
     return errors
 

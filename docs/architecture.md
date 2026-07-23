@@ -26,10 +26,12 @@ FilesystemBackend(root_dir=wiki_path, virtual_mode=True)
 
 Two consequences worth naming:
 
-- **The bundle sits at the virtual root.** The paths the agent reads and writes
-  are exactly the bundle-relative paths OKF prescribes, so `/concepts/foo.md`
-  in a tool call and `/concepts/foo.md` in a markdown link are the same string.
-  No translation layer, nothing for the model to get wrong.
+- **The bundle sits at the virtual root.** A tool call addresses a page by its
+  bundle path, `/concepts/foo.md`, with no prefix to prepend and no translation
+  layer. Links *inside* the pages are a different matter: they are written
+  relative to the page holding them (`../concepts/foo.md`), so that the bundle
+  stays navigable outside the agent too — on GitHub, in an editor, after a
+  move.
 - **Nothing is added to your directory.** The agent's instructions are in its
   system prompt, not in files; `ls` on your wiki shows your pages and nothing
   else.

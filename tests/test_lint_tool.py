@@ -22,7 +22,29 @@ description: Punta a una pagina inesistente.
 timestamp: 2026-07-19T10:30:00Z
 ---
 
-Vedi [fantasma](/concepts/fantasma.md).
+Vedi [fantasma](fantasma.md).
+"""
+
+ABSOLUTE_LINK_PAGE = """\
+---
+type: Concept
+title: Assoluta
+description: Punta a una pagina esistente, ma dalla root del bundle.
+timestamp: 2026-07-19T10:30:00Z
+---
+
+Vedi [isolata](/concepts/isolata.md).
+"""
+
+ISOLATED_PAGE = """\
+---
+type: Concept
+title: Isolata
+description: Raggiungibile solo dal link assoluto di assoluta.md.
+timestamp: 2026-07-19T10:30:00Z
+---
+
+Corpo.
 """
 
 NO_FRONTMATTER_PAGE = "# Nuda\n\nNessun frontmatter qui.\n"
@@ -39,6 +61,13 @@ Corpo.
 """
 
 
+def write_absolute_link_pair(wiki_path) -> None:
+    """Add a page whose only link is absolute, plus the page it points to."""
+    concepts = wiki_path / "concepts"
+    concepts.joinpath("assoluta.md").write_text(ABSOLUTE_LINK_PAGE, encoding="utf-8")
+    concepts.joinpath("isolata.md").write_text(ISOLATED_PAGE, encoding="utf-8")
+
+
 class TestRunOkfLint:
     def test_clean_bundle_has_no_errors(self, wiki_path):
         result = run_okf_lint(wiki_path)
@@ -51,6 +80,33 @@ class TestRunOkfLint:
         messages = [e["msg"] for e in run_okf_lint(wiki_path)["errors"]]
 
         assert any("broken link" in m for m in messages)
+
+    def test_detects_absolute_link(self, wiki_path):
+        write_absolute_link_pair(wiki_path)
+
+        messages = [e["msg"] for e in run_okf_lint(wiki_path)["errors"]]
+
+        assert any("absolute link" in m for m in messages)
+
+    def test_absolute_link_is_not_also_reported_as_broken(self, wiki_path):
+        """Its target does exist: one defect, one finding."""
+        write_absolute_link_pair(wiki_path)
+
+        messages = [e["msg"] for e in run_okf_lint(wiki_path)["errors"]]
+
+        assert not any("broken link" in m for m in messages)
+
+    def test_absolute_link_still_counts_as_inbound(self, wiki_path):
+        """A link written the wrong way still makes its target non-orphan."""
+        write_absolute_link_pair(wiki_path)
+
+        orphans = [
+            w["file"]
+            for w in run_okf_lint(wiki_path)["warnings"]
+            if "orphan" in w["msg"]
+        ]
+
+        assert "concepts/isolata.md" not in orphans
 
     def test_detects_missing_frontmatter(self, wiki_path):
         (wiki_path / "concepts" / "nuda.md").write_text(

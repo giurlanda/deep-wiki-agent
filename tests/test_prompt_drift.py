@@ -37,7 +37,7 @@ from deep_wiki_agent.prompts import (
 
 SKILL_MD = Path(__file__).parents[1] / "skills" / "okf-wiki" / "SKILL.md"
 
-SKILL_MD_SHA256 = "8a838b40b7609db13cc9300414ed71c4b1c7d765f4e188fe29aa6780d223ff57"
+SKILL_MD_SHA256 = "0e7299c4dc4c15d44188ae9c44906d45b9800d66967593791b5b34be12a1053b"
 
 MANAGER_PROMPT = MANAGER_SYSTEM_PROMPT_TEMPLATE.format(
     wiki_root=WIKI_ROOT, raw_dir="/raw", lint_block=LINT_TOOL_BLOCK

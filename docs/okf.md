@@ -46,16 +46,18 @@ it by default (`protect_raw=True`).
 
 Every concept page is a markdown document with YAML frontmatter. **The only
 field the spec mandates is `type`**; the rest is this bundle's convention.
+Below, a page living in `entities/` — every path in it is relative to that
+page:
 
 ```yaml
 ---
 type: Document | Entity | Concept | Synthesis | <domain type>
 title: Human-readable title
 description: One sentence — what this page contains.
-resource: raw/annual-report-2025.pdf   # path or URL of the primary source
+resource: ../raw/annual-report-2025.pdf   # path or URL of the primary source
 tags: [finance, 2025]
-timestamp: 2026-07-19T10:30:00Z        # last update, ISO 8601 UTC
-sources: [documents/annual-report-2025.md]
+timestamp: 2026-07-19T10:30:00Z           # last update, ISO 8601 UTC
+sources: [../documents/annual-report-2025.md]
 ---
 ```
 
@@ -74,9 +76,16 @@ simply ignores them.
 
 Rules the agents enforce on top:
 
-- Links are ordinary markdown links with a path relative to the bundle root:
-  `[customers](/entities/acme-spa.md)`. The graph emerges from links, not from
-  the directory hierarchy.
+- Links are ordinary markdown links whose path is **relative to the page that
+  contains them**, never absolute: from `index.md` a document page is
+  `documents/annual-report-2025.md`, and from
+  `documents/annual-report-2025.md` an entity is
+  `[customers](../entities/acme-spa.md)`. A leading `/` is what the linter
+  reports as an absolute link — relative paths are what keeps the bundle
+  browsable once it is moved, rendered on GitHub or opened in an editor. The
+  graph emerges from links, not from the directory hierarchy.
+- The path-valued frontmatter fields, `resource` and `sources`, follow the same
+  rule (URLs in `resource` are left as they are).
 - `type` is free-form but **consistent**: list the types in use in `AGENTS.md`
   and reuse them rather than inventing one per page.
 - `index.md` and `log.md` are reserved names and cannot be concept pages.
@@ -143,9 +152,9 @@ never mutates the knowledge base.
 
 The mechanical checks (`okf_lint`) plus the judgment a script cannot give:
 contradictions not yet flagged, claims superseded by newer sources, orphan
-pages and broken links, concepts repeatedly cited without a page, missing or
-inconsistent frontmatter, and the informational gaps that block the questions
-you ask most.
+pages, broken and absolute links, concepts repeatedly cited without a page,
+missing or inconsistent frontmatter, and the informational gaps that block the
+questions you ask most.
 
 ### Bootstrap
 

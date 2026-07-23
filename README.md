@@ -183,7 +183,7 @@ The `okf_lint` tool walks a real directory, so it is attached only when the bund
 
 ## Linting
 
-`okf_lint` validates the bundle against OKF v0.1 — frontmatter present, the mandatory `type` field, ISO 8601 timestamps, broken internal links, orphan pages, stale or missing `index.md`, misused reserved names.
+`okf_lint` validates the bundle against OKF v0.1 — frontmatter present, the mandatory `type` field, ISO 8601 timestamps, broken internal links, links written as absolute paths instead of relative to their page, orphan pages, stale or missing `index.md`, misused reserved names.
 
 The manager agent runs it as a tool. You can run the same check yourself:
 

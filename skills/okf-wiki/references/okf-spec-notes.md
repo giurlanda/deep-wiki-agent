@@ -53,6 +53,7 @@ Constraints this skill adds on top of OKF, to orient the format towards document
 
 - Default categories `documents/`, `entities/`, `concepts/`, `syntheses/` — adaptable to the domain at bootstrap.
 - `raw/` holds the immutable sources and **is not part of the OKF bundle**: it must be excluded from export and validation.
+- Every path a page writes — markdown links and the `resource` / `sources` frontmatter fields — is **relative to that page**, never absolute: `../entities/acme-spa.md`, not `/entities/acme-spa.md`. The spec does not mandate a form; relative paths are what keeps a bundle browsable after it is moved, rendered on GitHub or opened in an editor.
 - Every substantive claim in a document page carries a reference to its position in the source (section, page, clause). That is what makes the wiki verifiable rather than merely plausible.
 - Contradictions are not resolved by overwriting: they are recorded under `## Open points` with the source and date of both versions.
 

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Links between wiki pages are now written relative to the page that holds
+  them**, never as absolute bundle paths: `documents/my-doc.md` from
+  `index.md`, `../entities/acme-spa.md` from a document page. The path-valued
+  frontmatter fields (`resource`, `sources`) follow the same rule. A bundle
+  written this way stays navigable outside the agent — moved, rendered on
+  GitHub, or opened in an editor. Both system prompts, `SKILL.md` and the docs
+  state the rule; existing bundles full of absolute links keep resolving, but
+  the linter now reports them.
+
+### Added
+
+- **`okf_lint` reports absolute links as errors.** A link whose target exists
+  is reported once, as an absolute link rather than also as a broken one, and
+  still counts as an inbound link so its target is not flagged an orphan on top.
+
 ## [0.2.0] - 2026-07-22
 
 **Breaking release.** The agents no longer load a skill: their instructions are

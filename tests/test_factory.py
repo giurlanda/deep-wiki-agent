@@ -123,6 +123,7 @@ class TestManagerPrompt:
         [
             "file path is the identity of the concept",  # bundle structure
             "The only field the spec mandates is `type`",  # conformance
+            "relative to the page that contains them",  # link paths
             "Read the source in full",  # ingest
             "Orphan pages (no inbound links)",  # lint checklist
             "Supervised or batch ingest",  # bootstrap
@@ -137,6 +138,14 @@ class TestManagerPrompt:
         )
 
         assert instruction in prompt
+
+    def test_shows_no_link_written_as_an_absolute_path(self, wiki_path, model):
+        """One `](/...)` example is all the model needs to copy the wrong form."""
+        prompt = system_prompt_of(
+            create_wiki_manager_agent(model=model, wiki_path=wiki_path)
+        )
+
+        assert "](/" not in prompt
 
     def test_names_the_bundle_root_and_the_raw_directory(self, wiki_path, model):
         prompt = system_prompt_of(
@@ -338,12 +347,20 @@ class TestReaderPrompt:
         assert "read_file(" not in prompt
         assert "limit=1000" not in prompt
 
+    def test_shows_no_link_written_as_an_absolute_path(self, wiki_path, model):
+        prompt = system_prompt_of(
+            create_deep_wiki_agent(model=model, wiki_path=wiki_path)
+        )
+
+        assert "](/" not in prompt
+
     @pytest.mark.parametrize(
         "instruction",
         [
             "file path is the identity of the concept",  # bundle structure
             "the only field OKF mandates",  # enough conformance to read pages
             "ordinary markdown links",  # how to follow the graph
+            "relative to the page that contains them",  # how to resolve them
             "The query protocol",  # the search protocol
         ],
     )
