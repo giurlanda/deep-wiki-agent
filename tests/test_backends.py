@@ -17,7 +17,7 @@ class TestPermissions:
 
         assert rule.operations == ["write"]
         assert rule.mode == "deny"
-        assert set(rule.paths) == {"/", "/**"}
+        assert set(rule.paths) == {"/wiki/", "/wiki/**"}
 
     def test_read_only_leaves_reads_untouched(self):
         (rule,) = read_only_permissions()

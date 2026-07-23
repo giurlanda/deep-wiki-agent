@@ -290,7 +290,7 @@ class TestReaderIsReadOnly:
         (rule,) = kwargs_of(agent)["permissions"]
         assert rule.mode == "deny"
         assert rule.operations == ["write"]
-        assert set(rule.paths) == {"/", "/**"}
+        assert set(rule.paths) == {"/wiki/", "/wiki/**"}
 
     def test_reads_remain_allowed(self, wiki_path, model):
         agent = create_deep_wiki_agent(model=model, wiki_path=wiki_path)

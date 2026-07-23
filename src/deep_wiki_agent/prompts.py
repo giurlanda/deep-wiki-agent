@@ -66,14 +66,14 @@ bundle root, and every path below is addressed from there:
 
 ```
 {wiki_root}AGENTS.md      local schema: conventions, types, workflow
-{wiki_root}index.md       navigable catalogue of the root
-{wiki_root}log.md         append-only chronological history
+{wiki_root}wiki/index.md       navigable catalogue of the root
+{wiki_root}wiki/log.md         append-only chronological history
 {raw_dir}/           source documents - IMMUTABLE, never write here
-  assets/            images extracted from the documents
-documents/           one page per source document (plus its own index.md)
-entities/            people, organizations, products, systems
-concepts/            notions, definitions, processes, procedures
-syntheses/           cross-cutting analyses, comparisons, evolving theses
+{wiki_root}wiki/assets/            images extracted from the documents
+{wiki_root}wiki/documents/           one page per source document (plus its own index.md)
+{wiki_root}wiki/entities/            people, organizations, products, systems
+{wiki_root}wiki/concepts/            notions, definitions, processes, procedures
+{wiki_root}wiki/syntheses/           cross-cutting analyses, comparisons, evolving theses
 ```
 
 The **file path is the identity of the concept**. Do not rename a file \
@@ -91,16 +91,16 @@ them with the user at bootstrap and record them in `AGENTS.md`.
 Every concept file is one markdown document with YAML frontmatter. **The only \
 field the spec mandates is `type`.** The rest is this bundle's convention, but \
 respect it for consistency. Below, an example for a page that lives in \
-`entities/` — every path in it is written relative to that page:
+`{wiki_root}wiki/entities/` — every path in it is written relative to that page:
 
 ```yaml
 ---
 type: Document | Entity | Concept | Synthesis | <domain type>
 title: Human-readable title
 description: One sentence, what this page contains.
-resource: ../raw/annual-report-2025.pdf        # path or URL of the primary source
+resource: ../../raw/annual-report-2025.pdf   # path or URL of the primary source
 tags: [finance, 2025]
-timestamp: 2026-07-19T10:30:00Z                # last update, ISO 8601 UTC
+timestamp: 2026-07-19T10:30:00Z              # last update, ISO 8601 UTC
 sources: [../documents/annual-report-2025.md]  # document pages it derives from
 ---
 ```
@@ -108,12 +108,12 @@ sources: [../documents/annual-report-2025.md]  # document pages it derives from
 Rules:
 
 - Links are **ordinary markdown links**, and their path is always **relative \
-to the page that contains them** — never absolute. From `index.md` a document \
-page is `documents/annual-report-2025.md`; from \
-`documents/annual-report-2025.md` an entity is \
+to the page that contains them** — never absolute. From `wiki/index.md` a \
+document page is `documents/annual-report-2025.md`; from \
+`wiki/documents/annual-report-2025.md` an entity is \
 `[customers](../entities/acme-spa.md)` and its source is \
-`../raw/annual-report-2025.pdf`. A leading `/` is an error: relative paths are \
-what keeps the bundle browsable after it is moved, rendered on GitHub, or \
+`../../raw/annual-report-2025.pdf`. A leading `/` is an error: relative paths \
+are what keeps the bundle browsable after it is moved, rendered on GitHub, or \
 opened in an editor. The graph emerges from the links, not from the directory \
 hierarchy.
 - Frontmatter fields that hold a path — `resource`, `sources` — follow the \
@@ -263,13 +263,13 @@ The bundle is a graph of markdown pages, laid out like this:
 
 ```
 {wiki_root}AGENTS.md      local schema: this bundle's conventions, types, language
-{wiki_root}index.md       navigable catalogue of the root
-{wiki_root}log.md         append-only chronological history
-raw/                 the immutable source documents the wiki derives from
-documents/           one page per source document (plus its own index.md)
-entities/            people, organizations, products, systems
-concepts/            notions, definitions, processes, procedures
-syntheses/           cross-cutting analyses, comparisons, evolving theses
+{wiki_root}wiki/index.md       navigable catalogue of the root
+{wiki_root}wiki/log.md         append-only chronological history
+{raw_dir}/                 the immutable source documents the wiki derives from
+{wiki_root}wiki/documents/           one page per source document (plus its own index.md)
+{wiki_root}wiki/entities/            people, organizations, products, systems
+{wiki_root}wiki/concepts/            notions, definitions, processes, procedures
+{wiki_root}wiki/syntheses/           cross-cutting analyses, comparisons, evolving theses
 ```
 
 The **file path is the identity of the concept**. This bundle may use \
@@ -291,11 +291,11 @@ whether a page may be stale.
 the position-level citations.
 
 Links are **ordinary markdown links**, and their path is **relative to the \
-page that contains them**: in `documents/annual-report-2025.md`, \
-`[customers](../entities/acme-spa.md)` is `{wiki_root}entities/acme-spa.md`. \
-Resolve them from the directory of the page you are reading, not from the \
-bundle root. The path-valued frontmatter fields, `resource` and `sources`, are \
-written the same way.
+page that contains them**: in `wiki/documents/annual-report-2025.md`, \
+`[customers](../entities/acme-spa.md)` is \
+`{wiki_root}wiki/entities/acme-spa.md`. Resolve them from the directory of the \
+page you are reading, not from the bundle root. The path-valued frontmatter \
+fields, `resource` and `sources`, are written the same way.
 
 The graph emerges from the links, not from the directory hierarchy, so a \
 page's neighbours are the pages it links to - not the pages next to it in the \
@@ -305,7 +305,7 @@ same folder.
 
 ## 3. The query protocol
 
-1. Read `{wiki_root}index.md` to orient yourself, then the `index.md` of the \
+1. Read `{wiki_root}wiki/index.md` to orient yourself, then the `index.md` of the \
 relevant categories. At this scale the indexes replace embedding retrieval.
 2. Read the pages that look relevant in full. Follow their outgoing markdown \
 links - the bundle is a graph, and the answer is often one hop away from the \
@@ -320,7 +320,7 @@ may use, not just the user's exact wording.
 ## How to answer
 
 - Cite the wiki pages you used, by bundle path (e.g. \
-`{wiki_root}concepts/some-page.md`), and pass through the source references \
+`{wiki_root}wiki/concepts/some-page.md`), and pass through the source references \
 those pages carry.
 - Report contradictions rather than resolving them: if pages disagree, or a \
 page has an open point on the subject, say so and give both versions.

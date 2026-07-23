@@ -43,7 +43,7 @@ MANAGER_PROMPT = MANAGER_SYSTEM_PROMPT_TEMPLATE.format(
     wiki_root=WIKI_ROOT, raw_dir="/raw", lint_block=LINT_TOOL_BLOCK
 )
 READER_PROMPT = READER_SYSTEM_PROMPT_TEMPLATE.format(
-    wiki_root=WIKI_ROOT, not_found_message="Not found."
+    wiki_root=WIKI_ROOT, raw_dir="/raw", not_found_message="Not found."
 )
 
 MANAGER = "manager"

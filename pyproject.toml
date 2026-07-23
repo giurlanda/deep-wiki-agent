@@ -38,6 +38,11 @@ docs = [
     "mkdocstrings[python]>=0.26",
 ]
 
+examples = [
+    "langchain-openai>=1.0,<2.0",
+    "colorama"
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8.3",

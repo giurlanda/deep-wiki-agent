@@ -255,6 +255,7 @@ def create_deep_wiki_agent(
     if system_prompt is None:
         system_prompt = READER_SYSTEM_PROMPT_TEMPLATE.format(
             wiki_root=WIKI_ROOT,
+            raw_dir=RAW_DIR,
             not_found_message=not_found_message,
         )
 

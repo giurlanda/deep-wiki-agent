@@ -5,25 +5,6 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Changed
-
-- **Links between wiki pages are now written relative to the page that holds
-  them**, never as absolute bundle paths: `documents/my-doc.md` from
-  `index.md`, `../entities/acme-spa.md` from a document page. The path-valued
-  frontmatter fields (`resource`, `sources`) follow the same rule. A bundle
-  written this way stays navigable outside the agent — moved, rendered on
-  GitHub, or opened in an editor. Both system prompts, `SKILL.md` and the docs
-  state the rule; existing bundles full of absolute links keep resolving, but
-  the linter now reports them.
-
-### Added
-
-- **`okf_lint` reports absolute links as errors.** A link whose target exists
-  is reported once, as an absolute link rather than also as a broken one, and
-  still counts as an inbound link so its target is not flagged an orphan on top.
-
 ## [0.2.0] - 2026-07-22
 
 **Breaking release.** The agents no longer load a skill: their instructions are
@@ -61,6 +42,22 @@ cycle, because the project is pre-1.0.
   prompts the agent reads them with. Code that string-matches on the old
   messages needs updating. `SKILL.md` and its reference notes were translated
   to English for the same reason.
+- **Links between wiki pages are now written relative to the page that holds
+  them**, never as absolute bundle paths: `documents/my-doc.md` from
+  `index.md`, `../entities/acme-spa.md` from a document page. The path-valued
+  frontmatter fields (`resource`, `sources`) follow the same rule. A bundle
+  written this way stays navigable outside the agent — moved, rendered on
+  GitHub, or opened in an editor. Both system prompts, `SKILL.md` and the docs
+  state the rule; existing bundles full of absolute links keep resolving, but
+  the linter now reports them.
+- **The bundle now separates the writable wiki from the immutable sources at
+  the root**: `wiki/` holds the OKF content (`index.md`, `log.md`,
+  `documents/`, `entities/`, `concepts/`, `syntheses/`, `assets/`), `raw/`
+  sits beside it rather than under it. Both system prompts and their
+  linked-path examples were updated to the new layout (`../../raw/annual-
+  report-2025.pdf` from an entity page, `wiki/index.md` as the entry point).
+- **`read_only_permissions()` now denies writes under `/wiki/` instead of the
+  whole bundle root**, matching the new layout.
 
 ### Added
 
@@ -68,6 +65,13 @@ cycle, because the project is pre-1.0.
   stdlib-only module, runnable as
   `python -m deep_wiki_agent.okf_lint <bundle> [--fix] [--json]`. It exits `1`
   when the bundle has errors, so it drops into CI or a pre-commit hook.
+- **`okf_lint` reports absolute links as errors.** A link whose target exists
+  is reported once, as an absolute link rather than also as a broken one, and
+  still counts as an inbound link so its target is not flagged an orphan on top.
+- `examples/debug_middleware.py` — a `DebugMiddleware` for `langchain` agents
+  built with `create_deep_agent`, printing the model's last message and each
+  tool call's result to stdout for local debugging. Ships behind a new
+  `examples` extra (`langchain-openai`, `colorama`).
 
 ### Removed
 
@@ -117,6 +121,5 @@ Initial release.
   conformance rules, ingest / query / lint / bootstrap workflows, log format,
   OKF v0.1 reference notes, and the linter script.
 
-[Unreleased]: https://github.com/giurlanda/deep-wiki-agent/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/giurlanda/deep-wiki-agent/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/giurlanda/deep-wiki-agent/releases/tag/v0.1.0
