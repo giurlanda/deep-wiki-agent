@@ -44,16 +44,21 @@ uv add deep-wiki-agent
 
 Python 3.12+. You also need a provider package for the model you pass, e.g. `pip install langchain-anthropic`.
 
-## The knowledge lives in the skill, not in the prompt
+## The knowledge lives in the system prompt
 
-The substantive rules — bundle layout, frontmatter conformance, the ingest workflow, the query protocol, the lint checklist — live in the bundled **`okf-wiki` skill**, shipped as package data inside `deep_wiki_agent/skills/okf-wiki/`.
+The substantive rules — bundle layout, frontmatter conformance, the ingest workflow, the query protocol, the lint checklist, bootstrap, the log format — are in the agents' system prompts. They are in force from the first turn: nothing to load, no round trip spent reading a file, and no way for the model to skip them.
 
-Both factories mount that skill on the agent's virtual filesystem and instruct it to read `SKILL.md` before acting. The system prompts state purpose and contracts; they deliberately do not restate the skill's content, so there is exactly one source of truth for how the wiki is maintained. Edit the skill and both agents change behavior — no code release needed.
+The content is split by audience. The manager carries all of it. The reader carries bundle structure, enough conformance to read frontmatter and follow links, and the query protocol — not ingest, bootstrap or the log format, which it can never act on.
+
+`skills/okf-wiki/SKILL.md` stays in the repository as the canonical human-facing statement of the format, usable in Claude Code and other skill-aware harnesses. It is not shipped in the wheel and no agent reads it; `tests/test_prompt_drift.py` fails if it and the prompts drift apart.
+
+To change what an agent follows, pass `system_prompt=`.
 
 ### The virtual filesystem the agent sees
 
 ```
 /                          -> your OKF bundle (wiki_path)
+├── AGENTS.md
 ├── index.md
 ├── log.md
 ├── raw/                   write-protected: sources are immutable
@@ -61,14 +66,9 @@ Both factories mount that skill on the agent's virtual filesystem and instruct i
 ├── entities/
 ├── concepts/
 └── syntheses/
-/skills/                   -> the skills that ship with this package
-└── okf-wiki/
-    ├── SKILL.md           the agent's operating manual
-    ├── references/okf-spec-notes.md
-    └── scripts/okf_lint.py
 ```
 
-This is a `CompositeBackend`: `/skills/` routes to the package's skills directory, everything else to your bundle. Nothing is copied into your wiki directory, and the agent cannot write into the skill tree.
+One `FilesystemBackend`, rooted at your bundle, with `virtual_mode=True` so the agent cannot escape it via `../` or `~/`. Nothing is added to your wiki directory.
 
 ## Usage
 
@@ -98,7 +98,7 @@ result = manager.invoke(
 print(result["messages"][-1].content)
 ```
 
-The agent reads the skill, bootstraps the bundle structure (agreeing categories and types with you first), writes `AGENTS.md`, ingests the source, creates and cross-links the pages, updates the indexes and `log.md`, and runs `okf_lint`.
+The agent bootstraps the bundle structure (agreeing categories and types with you first), writes `AGENTS.md`, ingests the source, creates and cross-links the pages, updates the indexes and `log.md`, and runs `okf_lint`.
 
 Put your source documents in `<wiki_path>/raw/` beforehand. They are write-protected, so the agent reads them and can never alter them.
 
@@ -168,26 +168,22 @@ manager = create_wiki_manager_agent(
 
 ### A bundle that is not on the local disk
 
-Pass your own `backend` instead of `wiki_path`. You then own the whole mount, including making the skill reachable at `skills_mount`:
+Pass your own `backend` instead of `wiki_path`. It is used verbatim, and there is nothing else to mount — the agent's instructions travel in the prompt, so any backend serving the bundle at its root works as-is:
 
 ```python
-from deepagents.backends import CompositeBackend, FilesystemBackend, StoreBackend
-from deep_wiki_agent import bundled_skills_dir
+from deepagents.backends import StoreBackend
 
-backend = lambda rt: CompositeBackend(
-    default=StoreBackend(rt),
-    routes={
-        "/skills/": FilesystemBackend(root_dir=bundled_skills_dir(), virtual_mode=True)
-    },
+reader = create_deep_wiki_agent(
+    model="anthropic:claude-sonnet-5",
+    backend=lambda rt: StoreBackend(rt),
 )
-reader = create_deep_wiki_agent(model="anthropic:claude-sonnet-5", backend=backend)
 ```
 
 The `okf_lint` tool walks a real directory, so it is attached only when the bundle resolves to one; for other backends the factory skips it silently and the prompt does not mention it.
 
 ## Linting
 
-`okf_lint` validates the bundle against OKF v0.1 — frontmatter present, the mandatory `type` field, ISO 8601 timestamps, broken internal links, orphan pages, stale or missing `index.md`, misused reserved names.
+`okf_lint` validates the bundle against OKF v0.1 — frontmatter present, the mandatory `type` field, ISO 8601 timestamps, broken internal links, links written as absolute paths instead of relative to their page, orphan pages, stale or missing `index.md`, misused reserved names.
 
 The manager agent runs it as a tool. You can run the same check yourself:
 
@@ -198,34 +194,44 @@ report = run_okf_lint("./my-wiki")
 print(report["errors"], report["warnings"])
 ```
 
-or from the shell — the skill's script is standalone and dependency-free:
+or from the shell — the validator is stdlib-only and exits `1` on errors, so it drops straight into CI:
 
 ```bash
-python "$(python -c 'import deep_wiki_agent as d; print(d.okf_wiki_skill_dir())')/scripts/okf_lint.py" ./my-wiki
+python -m deep_wiki_agent.okf_lint ./my-wiki [--fix] [--json]
 ```
 
 ## Customizing the instructions
 
-Point `skills_dir` at your own skills tree to replace what the agents follow:
+Start from the shipped template and extend it, rather than writing one from scratch:
 
 ```python
+from deep_wiki_agent import MANAGER_SYSTEM_PROMPT_TEMPLATE
+from deep_wiki_agent.prompts import LINT_TOOL_BLOCK
+
+prompt = MANAGER_SYSTEM_PROMPT_TEMPLATE.format(
+    wiki_root="/", raw_dir="/raw", lint_block=LINT_TOOL_BLOCK
+) + "\n\nAlways write the pages in Italian."
+
 manager = create_wiki_manager_agent(
     model="anthropic:claude-sonnet-5",
     wiki_path="./my-wiki",
-    skills_dir="./my-skills",   # must contain an okf-wiki/ directory
+    system_prompt=prompt,
 )
 ```
 
-The prompts reference `<skills_mount>/okf-wiki/SKILL.md`, so a replacement skill must keep that directory name. To *add* skills rather than replace them, keep the default `skills_dir` and mount extra sources with `extra_skills`.
+Passing `system_prompt` replaces the built-in instructions wholesale, so restate whatever you still want in force. For the reader that includes the not-found contract and the query protocol — the read-only *enforcement*, by contrast, lives in the permissions and survives any prompt.
+
+To add genuine skills alongside the agent, `create_deep_agent`'s own `skills=` parameter passes straight through.
 
 ## API
 
 - `create_wiki_manager_agent(*, model, wiki_path=None, backend=None, ...)` — read/write agent over an OKF bundle.
 - `create_deep_wiki_agent(*, model, wiki_path=None, backend=None, not_found_message=..., ...)` — read-only agent that answers only from the bundle.
-- `build_wiki_backend(wiki_path, *, skills_mount, skills_dir, ...)` — the composite backend the factories assemble.
 - `create_okf_lint_tool(wiki_path)` / `run_okf_lint(wiki_path, *, fix=False)` — OKF conformance validation.
-- `bundled_skills_dir()` / `okf_wiki_skill_dir()` — locate the packaged skill.
 - `read_only_permissions()` / `write_protect_permissions(paths)` — the permission sets, reusable in your own agents.
+- `MANAGER_SYSTEM_PROMPT_TEMPLATE` / `READER_SYSTEM_PROMPT_TEMPLATE` — the instructions each agent follows, as `str.format` templates.
+
+Upgrading from 0.1.x? `build_wiki_backend`, `bundled_skills_dir`, `okf_wiki_skill_dir`, `normalize_mount`, and the `skills_mount` / `skills_dir` / `extra_skills` parameters are gone — see the [migration table](https://giurlanda.github.io/deep-wiki-agent/api/#migrating-from-01x).
 
 Full reference: <https://giurlanda.github.io/deep-wiki-agent/>
 

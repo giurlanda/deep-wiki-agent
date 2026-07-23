@@ -19,7 +19,7 @@ hierarchy the filesystem implies.
 
 ## Bundle layout
 
-The layout this library's skill prescribes:
+The layout the agents' prompts prescribe:
 
 ```
 <bundle>/
@@ -46,16 +46,18 @@ it by default (`protect_raw=True`).
 
 Every concept page is a markdown document with YAML frontmatter. **The only
 field the spec mandates is `type`**; the rest is this bundle's convention.
+Below, a page living in `entities/` — every path in it is relative to that
+page:
 
 ```yaml
 ---
 type: Document | Entity | Concept | Synthesis | <domain type>
 title: Human-readable title
 description: One sentence — what this page contains.
-resource: raw/annual-report-2025.pdf   # path or URL of the primary source
+resource: ../raw/annual-report-2025.pdf   # path or URL of the primary source
 tags: [finance, 2025]
-timestamp: 2026-07-19T10:30:00Z        # last update, ISO 8601 UTC
-sources: [documents/annual-report-2025.md]
+timestamp: 2026-07-19T10:30:00Z           # last update, ISO 8601 UTC
+sources: [../documents/annual-report-2025.md]
 ---
 ```
 
@@ -72,11 +74,18 @@ sources: [documents/annual-report-2025.md]
 Extensions like `sources` are allowed: a consumer that does not know them
 simply ignores them.
 
-Rules the skill enforces on top:
+Rules the agents enforce on top:
 
-- Links are ordinary markdown links with a path relative to the bundle root:
-  `[customers](/entities/acme-spa.md)`. The graph emerges from links, not from
-  the directory hierarchy.
+- Links are ordinary markdown links whose path is **relative to the page that
+  contains them**, never absolute: from `index.md` a document page is
+  `documents/annual-report-2025.md`, and from
+  `documents/annual-report-2025.md` an entity is
+  `[customers](../entities/acme-spa.md)`. A leading `/` is what the linter
+  reports as an absolute link — relative paths are what keeps the bundle
+  browsable once it is moved, rendered on GitHub or opened in an editor. The
+  graph emerges from links, not from the directory hierarchy.
+- The path-valued frontmatter fields, `resource` and `sources`, follow the same
+  rule (URLs in `resource` are left as they are).
 - `type` is free-form but **consistent**: list the types in use in `AGENTS.md`
   and reuse them rather than inventing one per page.
 - `index.md` and `log.md` are reserved names and cannot be concept pages.
@@ -88,14 +97,15 @@ agent navigating the hierarchy reads the index before descending into pages. At
 moderate scale (~100 sources, a few hundred pages) this replaces embedding
 retrieval. `log.md` is the chronological history of changes.
 
-Both are optional per the spec. This library's skill treats them as mandatory:
+Both are optional per the spec. This library treats them as mandatory:
 without an index the wiki is not navigable by an agent, and without a log the
 story of how it grew is lost.
 
 ## The workflows
 
-The skill defines four operations. The agents follow them by reading the skill,
-not by having them hard-coded in their prompts.
+Four operations define the wiki's lifecycle. They live in the agents' system
+prompts, so they are in force from the first turn: the manager carries all
+four, the reader only *Query*.
 
 ### Ingest
 
@@ -118,7 +128,7 @@ The main use case. When a document lands in `raw/`:
    typically touches 8–15 pages.
 6. **Flag contradictions.** A new source that contradicts an existing claim
    does not silently overwrite it: both versions are recorded with source and
-   date under `## Punti aperti`, and raised with you.
+   date under `## Open points`, and raised with you.
 7. **Update the `index.md`** of the touched categories and the root.
 8. **Append to `log.md`.**
 
@@ -142,9 +152,9 @@ never mutates the knowledge base.
 
 The mechanical checks (`okf_lint`) plus the judgment a script cannot give:
 contradictions not yet flagged, claims superseded by newer sources, orphan
-pages and broken links, concepts repeatedly cited without a page, missing or
-inconsistent frontmatter, and the informational gaps that block the questions
-you ask most.
+pages, broken and absolute links, concepts repeatedly cited without a page,
+missing or inconsistent frontmatter, and the informational gaps that block the
+questions you ask most.
 
 ### Bootstrap
 
@@ -168,13 +178,27 @@ A fixed prefix, so the log stays greppable with
 
 Entry types: `ingest`, `query`, `lint`, `refactor`.
 
-## Reading the skill yourself
+## Reading the instructions yourself
 
-The skill is package data, so you can read exactly what your agents follow:
+These rules are not hidden in a file the agent has to load: they are its system
+prompt, and you can print exactly what it will follow.
 
 ```python
-from deep_wiki_agent import okf_wiki_skill_dir
+from deep_wiki_agent import (
+    MANAGER_SYSTEM_PROMPT_TEMPLATE,
+    READER_SYSTEM_PROMPT_TEMPLATE,
+)
+from deep_wiki_agent.prompts import LINT_TOOL_BLOCK
 
-print((okf_wiki_skill_dir() / "SKILL.md").read_text())
-print((okf_wiki_skill_dir() / "references" / "okf-spec-notes.md").read_text())
+print(
+    MANAGER_SYSTEM_PROMPT_TEMPLATE.format(
+        wiki_root="/", raw_dir="/raw", lint_block=LINT_TOOL_BLOCK
+    )
+)
+print(READER_SYSTEM_PROMPT_TEMPLATE.format(wiki_root="/", not_found_message="..."))
 ```
+
+The repository also keeps `skills/okf-wiki/SKILL.md` as the canonical
+human-facing statement of the format — usable in Claude Code and other
+skill-aware harnesses, and kept in step with the prompts by
+`tests/test_prompt_drift.py`. It is not part of the installed package.

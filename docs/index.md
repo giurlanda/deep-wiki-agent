@@ -32,7 +32,7 @@ The read-only guarantee is structural: it comes from `deepagents`' `FilesystemPe
 
 ## Why a wiki instead of RAG
 
-The `okf-wiki` skill that drives both agents states the premise:
+The instructions that drive both agents state the premise:
 
 > The wiki is not an index for RAG. It is an artifact that **grows**. Every ingested document is not merely summarized: it is *integrated*, updating existing pages, creating the links, and flagging contradictions. Knowledge is compiled once and then kept current, not re-derived at every question.
 
@@ -42,5 +42,5 @@ Practically, that means the reader agent does not embed and retrieve. It reads `
 
 - [Getting started](getting-started.md) — install, build a wiki, query it.
 - [The OKF wiki format](okf.md) — bundle layout, frontmatter, the workflows the agents follow.
-- [Architecture](architecture.md) — the backend mount, the permission model, why the prompts are thin.
+- [Architecture](architecture.md) — the filesystem, the permission model, why the instructions live in the prompt.
 - [API reference](api.md) — every parameter of both factories.
