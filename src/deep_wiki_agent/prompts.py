@@ -162,7 +162,7 @@ attention.
 
 When the user asks what the wiki says:
 
-1. Read `{wiki_root}index.md`, then the `index.md` of the relevant categories, \
+1. Read `{wiki_root}wiki/index.md`, then the `index.md` of the relevant categories, \
 to orient yourself. At this scale the indexes replace embedding retrieval.
 2. Read the relevant pages. Go back to `{raw_dir}/` only for a detail the wiki \
 did not capture - and if you need to do that often, that is a signal the page \
