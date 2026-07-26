@@ -29,15 +29,17 @@ from deep_wiki_agent.factory import (
     create_wiki_manager_agent,
 )
 from deep_wiki_agent.prompts import (
+    BUNDLE_SKELETON,
     DEFAULT_NOT_FOUND_MESSAGE,
     MANAGER_SYSTEM_PROMPT_TEMPLATE,
     READER_SYSTEM_PROMPT_TEMPLATE,
 )
 from deep_wiki_agent.tools import create_okf_lint_tool, run_okf_lint
 
-__version__ = "0.2.0"
+__version__ = "0.2.2"
 
 __all__ = [
+    "BUNDLE_SKELETON",
     "DEFAULT_NOT_FOUND_MESSAGE",
     "MANAGER_SYSTEM_PROMPT_TEMPLATE",
     "RAW_DIR",

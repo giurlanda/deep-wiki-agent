@@ -195,7 +195,11 @@ print(
         wiki_root="/", raw_dir="/raw", lint_block=LINT_TOOL_BLOCK
     )
 )
-print(READER_SYSTEM_PROMPT_TEMPLATE.format(wiki_root="/", not_found_message="..."))
+print(
+    READER_SYSTEM_PROMPT_TEMPLATE.format(
+        wiki_root="/", raw_dir="/raw", not_found_message="..."
+    )
+)
 ```
 
 The repository also keeps `skills/okf-wiki/SKILL.md` as the canonical

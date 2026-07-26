@@ -5,6 +5,36 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-07-26
+
+### Fixed
+
+- **The paths the prompts cite now match the `wiki/` layout they describe.**
+  Section 1 of both prompts moved the bundle's pages under `wiki/` in 0.2.0,
+  but several instructions kept addressing the flat layout: the manager was
+  told to update "the `index.md` of the root" and append to `log.md`, to
+  bootstrap `index.md` / `log.md`, and its log example cited a source as
+  `raw/annual-report-2025.pdf` — a path that, resolved from `wiki/log.md`,
+  points at `wiki/raw/`, which does not exist. The reader was sent back to
+  `raw/` the same way. All of them are now written against the real layout,
+  and both structure diagrams state explicitly that `raw/` sits beside
+  `wiki/`, not inside it. (#5)
+- The `READER_SYSTEM_PROMPT_TEMPLATE` examples in `docs/api.md` and
+  `docs/okf.md` omitted the `raw_dir` placeholder, so copying them raised
+  `KeyError: 'raw_dir'`.
+- `deep_wiki_agent.__version__` was left at `0.2.0` by the 0.2.1 release; it
+  tracks `pyproject.toml` again.
+
+### Added
+
+- **`BUNDLE_SKELETON`**, the bundle layout the manager bootstraps, exported as
+  a tuple of bundle-relative paths. It is the reference for the new
+  `tests/test_prompt_paths.py`, which materializes the skeleton and checks that
+  every path the prompts cite resolves inside it — root-relative paths against
+  the bundle root, and the paths in the frontmatter and log examples against
+  the page each example is written into. The drift this release fixes now fails
+  the suite.
+
 ## [0.2.1] - 2026-07-26
 
 ### Fixed

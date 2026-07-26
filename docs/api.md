@@ -26,13 +26,32 @@
 |---|---|---|
 | `WIKI_ROOT` | `"/"` | mount point of the OKF bundle |
 | `RAW_DIR` | `"/raw"` | the immutable source-document directory |
+| `BUNDLE_SKELETON` | see below | the layout the manager bootstraps |
 | `DEFAULT_NOT_FOUND_MESSAGE` | see below | the reader's not-found answer |
 
 ```python
+BUNDLE_SKELETON = (
+    "AGENTS.md",
+    "raw/",
+    "wiki/index.md",
+    "wiki/log.md",
+    "wiki/assets/",
+    "wiki/documents/",
+    "wiki/entities/",
+    "wiki/concepts/",
+    "wiki/syntheses/",
+)
+
 DEFAULT_NOT_FOUND_MESSAGE = (
     "I could not find the requested information in the wiki knowledge base."
 )
 ```
+
+`BUNDLE_SKELETON` is the same layout section 1 of both prompts draws, as
+bundle-relative paths — directories carry a trailing slash, and each category
+directory also holds its own `index.md`. Use it to pre-create a bundle, or to
+check one you were handed; `tests/test_prompt_paths.py` uses it to verify that
+every path the prompts cite exists in the layout they describe.
 
 ## Prompt templates
 
@@ -44,7 +63,7 @@ rewriting from scratch. They are `str.format` templates:
 | Template | Placeholders |
 |---|---|
 | `MANAGER_SYSTEM_PROMPT_TEMPLATE` | `wiki_root`, `raw_dir`, `lint_block` |
-| `READER_SYSTEM_PROMPT_TEMPLATE` | `wiki_root`, `not_found_message` |
+| `READER_SYSTEM_PROMPT_TEMPLATE` | `wiki_root`, `raw_dir`, `not_found_message` |
 
 `lint_block` is filled with `LINT_TOOL_BLOCK` when the `okf_lint` tool is
 attached, and with an empty string otherwise.
@@ -54,6 +73,7 @@ from deep_wiki_agent import READER_SYSTEM_PROMPT_TEMPLATE
 
 prompt = READER_SYSTEM_PROMPT_TEMPLATE.format(
     wiki_root="/",
+    raw_dir="/raw",
     not_found_message="Nothing found in the knowledge base.",
 ) + "\n\nAlways answer in Italian."
 ```
