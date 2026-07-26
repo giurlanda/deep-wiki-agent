@@ -20,11 +20,37 @@ must therefore be doubled.
 from __future__ import annotations
 
 __all__ = [
+    "BUNDLE_SKELETON",
     "DEFAULT_NOT_FOUND_MESSAGE",
     "LINT_TOOL_BLOCK",
     "MANAGER_SYSTEM_PROMPT_TEMPLATE",
     "READER_SYSTEM_PROMPT_TEMPLATE",
 ]
+
+BUNDLE_SKELETON: tuple[str, ...] = (
+    "AGENTS.md",
+    "raw/",
+    "wiki/index.md",
+    "wiki/log.md",
+    "wiki/assets/",
+    "wiki/documents/",
+    "wiki/entities/",
+    "wiki/concepts/",
+    "wiki/syntheses/",
+)
+"""The layout the manager's bootstrap creates, in bundle-relative paths.
+
+Directories carry a trailing slash, and each category directory also holds its
+own ``index.md``. Categories beyond the four defaults are legitimate — the
+bundle's ``AGENTS.md`` records them — so this is the floor of a conformant
+bundle, not its ceiling.
+
+Section 1 of both prompts renders this same layout. ``tests/test_prompt_paths``
+materializes it and checks that every path the prompts cite elsewhere resolves
+inside it, which is what keeps the structure diagram and the rest of the
+instructions from drifting apart the way they did when ``wiki/`` was
+introduced.
+"""
 
 DEFAULT_NOT_FOUND_MESSAGE = (
     "I could not find the requested information in the wiki knowledge base."
@@ -65,16 +91,21 @@ The bundle is mounted at the root of your filesystem. `{wiki_root}` is the \
 bundle root, and every path below is addressed from there:
 
 ```
-{wiki_root}AGENTS.md      local schema: conventions, types, workflow
-{wiki_root}wiki/index.md       navigable catalogue of the root
-{wiki_root}wiki/log.md         append-only chronological history
-{raw_dir}/           source documents - IMMUTABLE, never write here
-{wiki_root}wiki/assets/            images extracted from the documents
-{wiki_root}wiki/documents/           one page per source document (plus its own index.md)
-{wiki_root}wiki/entities/            people, organizations, products, systems
-{wiki_root}wiki/concepts/            notions, definitions, processes, procedures
-{wiki_root}wiki/syntheses/           cross-cutting analyses, comparisons, evolving theses
+{wiki_root}AGENTS.md        local schema: conventions, types, workflow
+{raw_dir}/             source documents - IMMUTABLE, never write here
+{wiki_root}wiki/index.md     navigable catalogue of the wiki root
+{wiki_root}wiki/log.md       append-only chronological history
+{wiki_root}wiki/assets/      images extracted from the documents
+{wiki_root}wiki/documents/   one page per source document (plus its own index.md)
+{wiki_root}wiki/entities/    people, organizations, products, systems
+{wiki_root}wiki/concepts/    notions, definitions, processes, procedures
+{wiki_root}wiki/syntheses/   cross-cutting analyses, comparisons, evolving theses
 ```
+
+Everything the wiki owns lives under `{wiki_root}wiki/`; `{raw_dir}/` sits \
+beside it, not inside it. From a page in a category directory the sources are \
+therefore two hops up (`../../raw/...`), and from `{wiki_root}wiki/index.md` \
+or `{wiki_root}wiki/log.md` one hop up (`../raw/...`).
 
 The **file path is the identity of the concept**. Do not rename a file \
 without updating every inbound link.
@@ -155,8 +186,9 @@ document typically touches 8-15 pages.
 not silently overwrite it. Record both versions with their source and date in \
 an `## Open points` section of the affected page, and bring it to the user's \
 attention.
-7. **Update the `index.md`** of the touched categories and of the root.
-8. **Append to `log.md`.**
+7. **Update the `index.md`** of the touched categories and the wiki root's \
+`{wiki_root}wiki/index.md`.
+8. **Append to `{wiki_root}wiki/log.md`.**
 
 ### Query
 
@@ -199,17 +231,18 @@ On a first run, before creating anything, settle with the user:
 - Language of the pages
 - Supervised or batch ingest
 
-Then create the structure, write `AGENTS.md` with those decisions, and \
-initialize `index.md` and `log.md` empty but conformant.
+Then create the structure, write `{wiki_root}AGENTS.md` with those decisions, \
+and initialize `{wiki_root}wiki/index.md` and `{wiki_root}wiki/log.md` empty \
+but conformant.
 
 ## 5. Log format
 
 A fixed prefix, so the log stays queryable with \
-`grep "^## \\[" log.md | tail -5`:
+`grep "^## \\[" {wiki_root}wiki/log.md | tail -5`:
 
 ```markdown
 ## [2026-07-19] ingest | Annual report 2025
-- Source: `raw/annual-report-2025.pdf` (84 pp.)
+- Source: `../raw/annual-report-2025.pdf` (84 pp.)
 - Created: documents/annual-report-2025.md, entities/acme-spa.md
 - Updated: concepts/operating-margin.md, syntheses/trend-2023-2025.md
 - Open: Q3 revenue diverges from the half-year statement
@@ -262,15 +295,18 @@ it, and state plainly which part is not covered by the knowledge base.
 The bundle is a graph of markdown pages, laid out like this:
 
 ```
-{wiki_root}AGENTS.md      local schema: this bundle's conventions, types, language
-{wiki_root}wiki/index.md       navigable catalogue of the root
-{wiki_root}wiki/log.md         append-only chronological history
-{raw_dir}/                 the immutable source documents the wiki derives from
-{wiki_root}wiki/documents/           one page per source document (plus its own index.md)
-{wiki_root}wiki/entities/            people, organizations, products, systems
-{wiki_root}wiki/concepts/            notions, definitions, processes, procedures
-{wiki_root}wiki/syntheses/           cross-cutting analyses, comparisons, evolving theses
+{wiki_root}AGENTS.md        local schema: this bundle's conventions, types, language
+{raw_dir}/             the immutable source documents the wiki derives from
+{wiki_root}wiki/index.md     navigable catalogue of the wiki root
+{wiki_root}wiki/log.md       append-only chronological history
+{wiki_root}wiki/documents/   one page per source document (plus its own index.md)
+{wiki_root}wiki/entities/    people, organizations, products, systems
+{wiki_root}wiki/concepts/    notions, definitions, processes, procedures
+{wiki_root}wiki/syntheses/   cross-cutting analyses, comparisons, evolving theses
 ```
+
+Everything the wiki owns lives under `{wiki_root}wiki/`; `{raw_dir}/` sits \
+beside it, not inside it, so from a page a source is `../../raw/...`.
 
 The **file path is the identity of the concept**. This bundle may use \
 categories beyond those defaults (e.g. `clauses/`, `runbooks/`, `decisions/`); \
@@ -310,8 +346,8 @@ relevant categories. At this scale the indexes replace embedding retrieval.
 2. Read the pages that look relevant in full. Follow their outgoing markdown \
 links - the bundle is a graph, and the answer is often one hop away from the \
 page you landed on.
-3. Go back to `raw/` only for a detail the wiki did not capture; the wiki \
-pages, not the sources, are what you cite.
+3. Go back to `{raw_dir}/` only for a detail the wiki did not capture; the \
+wiki pages, not the sources, are what you cite.
 4. Use `grep` and `glob` to catch pages the indexes missed before you conclude \
 that something is absent. Search synonyms and the other languages the bundle \
 may use, not just the user's exact wording.

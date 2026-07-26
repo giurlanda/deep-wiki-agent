@@ -230,6 +230,7 @@ To add genuine skills alongside the agent, `create_deep_agent`'s own `skills=` p
 - `create_okf_lint_tool(wiki_path)` / `run_okf_lint(wiki_path, *, fix=False)` — OKF conformance validation.
 - `read_only_permissions()` / `write_protect_permissions(paths)` — the permission sets, reusable in your own agents.
 - `MANAGER_SYSTEM_PROMPT_TEMPLATE` / `READER_SYSTEM_PROMPT_TEMPLATE` — the instructions each agent follows, as `str.format` templates.
+- `BUNDLE_SKELETON` — the bundle layout the manager bootstraps, as bundle-relative paths.
 
 Upgrading from 0.1.x? `build_wiki_backend`, `bundled_skills_dir`, `okf_wiki_skill_dir`, `normalize_mount`, and the `skills_mount` / `skills_dir` / `extra_skills` parameters are gone — see the [migration table](https://giurlanda.github.io/deep-wiki-agent/api/#migrating-from-01x).
 
