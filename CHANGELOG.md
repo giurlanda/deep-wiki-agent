@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The linter is attached on an explicit backend type check, not on a
+  `getattr(backend, "cwd", None)` probe.** `cwd` is a `FilesystemBackend`
+  implementation detail rather than part of the backend protocol, so the old
+  duck typing had two failure modes: if `deepagents` renamed the attribute the
+  `okf_lint` tool would stop being attached with no signal at all, and any
+  other backend that happened to expose a `cwd` would be mistaken for a local
+  bundle. `resolve_local_wiki_path` now requires an actual `FilesystemBackend`.
+  The `deepagents` dependency is capped at `<0.7` accordingly, until that
+  surface is stable across a minor release. (#7)
+- **A skipped `okf_lint` tool is no longer silent.** Building a manager with
+  `enable_lint_tool=True` on a backend that is not filesystem-backed logs a
+  warning on the `deep_wiki_agent.factory` logger naming the backend and
+  pointing at `python -m deep_wiki_agent.okf_lint`, instead of returning an
+  agent whose prompt tells it to run a linter it does not have. (#7)
 - **The paths the prompts cite now match the `wiki/` layout they describe.**
   Section 1 of both prompts moved the bundle's pages under `wiki/` in 0.2.0,
   but several instructions kept addressing the flat layout: the manager was

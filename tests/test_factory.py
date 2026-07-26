@@ -8,6 +8,7 @@ them to.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import pytest
@@ -233,6 +234,29 @@ class TestManagerTools:
         agent = create_wiki_manager_agent(model=model, backend=StateBackend())
 
         assert kwargs_of(agent)["tools"] == []
+
+    def test_a_skipped_lint_tool_is_logged(self, model, caplog):
+        with caplog.at_level(logging.WARNING, logger="deep_wiki_agent.factory"):
+            create_wiki_manager_agent(model=model, backend=StateBackend())
+
+        (record,) = caplog.records
+        assert record.levelno == logging.WARNING
+        assert "StateBackend" in record.getMessage()
+        assert "okf_lint" in record.getMessage()
+
+    def test_an_attached_lint_tool_logs_nothing(self, wiki_path, model, caplog):
+        with caplog.at_level(logging.WARNING, logger="deep_wiki_agent.factory"):
+            create_wiki_manager_agent(model=model, wiki_path=wiki_path)
+
+        assert caplog.records == []
+
+    def test_an_explicitly_disabled_lint_tool_logs_nothing(self, model, caplog):
+        with caplog.at_level(logging.WARNING, logger="deep_wiki_agent.factory"):
+            create_wiki_manager_agent(
+                model=model, backend=StateBackend(), enable_lint_tool=False
+            )
+
+        assert caplog.records == []
 
     def test_extra_tools_are_kept(self, wiki_path, model):
         from langchain_core.tools import tool

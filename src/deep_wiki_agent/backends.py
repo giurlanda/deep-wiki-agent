@@ -16,6 +16,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from deepagents.backends import FilesystemBackend
 from deepagents.middleware.filesystem import FilesystemPermission
 
 if TYPE_CHECKING:
@@ -88,10 +89,11 @@ def resolve_local_wiki_path(backend: BackendProtocol | None) -> Path | None:
     Returns:
         The local bundle root, or ``None`` when it is not a local directory.
     """
-    # ``FilesystemBackend`` stores its resolved root as ``cwd``; other
-    # backends have no local root at all.
-    root = getattr(backend, "cwd", None)
-    if root is None:
+    # An explicit type check rather than duck typing on ``cwd``: the attribute
+    # is an implementation detail of ``FilesystemBackend``, and probing for it
+    # would silently treat any future backend that happens to expose a ``cwd``
+    # as local. Only this class is contractually rooted at a real directory.
+    if not isinstance(backend, FilesystemBackend):
         return None
-    path = Path(root)
+    path = Path(backend.cwd)
     return path if path.is_dir() else None

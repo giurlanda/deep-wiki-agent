@@ -19,7 +19,10 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "deepagents>=0.6.5",
+    # Capped below 0.7: the linter is only attachable to a `FilesystemBackend`,
+    # which this package type-checks against directly. Lift the cap once that
+    # backend surface is stable across a minor release.
+    "deepagents>=0.6.5,<0.7",
     "langchain>=1.0,<2.0",
 ]
 
