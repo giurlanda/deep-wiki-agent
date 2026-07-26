@@ -36,7 +36,7 @@ The instructions that drive both agents state the premise:
 
 > The wiki is not an index for RAG. It is an artifact that **grows**. Every ingested document is not merely summarized: it is *integrated*, updating existing pages, creating the links, and flagging contradictions. Knowledge is compiled once and then kept current, not re-derived at every question.
 
-Practically, that means the reader agent does not embed and retrieve. It reads `index.md`, follows the link graph, and cites pages that themselves cite a position in a source document. At the scale a wiki is meant for — a hundred sources, a few hundred pages — navigation beats retrieval, and it stays auditable.
+Practically, that means the reader agent does not embed and retrieve. It reads `wiki/index.md`, follows the link graph, and cites pages that themselves cite a position in a source document. At the scale a wiki is meant for — a hundred sources, a few hundred pages — navigation beats retrieval, and it stays auditable.
 
 ## Where to go next
 

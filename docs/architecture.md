@@ -15,23 +15,29 @@ FilesystemBackend(root_dir=wiki_path, virtual_mode=True)
 ```
 /                          -> your OKF bundle
 ├── AGENTS.md
-├── index.md
-├── log.md
 ├── raw/
-├── documents/
-├── entities/
-├── concepts/
-└── syntheses/
+└── wiki/
+    ├── index.md
+    ├── log.md
+    ├── assets/
+    ├── documents/
+    ├── entities/
+    ├── concepts/
+    └── syntheses/
 ```
 
 Two consequences worth naming:
 
 - **The bundle sits at the virtual root.** A tool call addresses a page by its
-  bundle path, `/concepts/foo.md`, with no prefix to prepend and no translation
-  layer. Links *inside* the pages are a different matter: they are written
-  relative to the page holding them (`../concepts/foo.md`), so that the bundle
-  stays navigable outside the agent too — on GitHub, in an editor, after a
-  move.
+  bundle path, `/wiki/concepts/foo.md`, with no prefix to prepend and no
+  translation layer. Links *inside* the pages are a different matter: they are
+  written relative to the page holding them (`../concepts/foo.md`), so that the
+  bundle stays navigable outside the agent too — on GitHub, in an editor, after
+  a move.
+- **`raw/` sits beside `wiki/`, not inside it.** Everything the wiki owns is
+  under `wiki/`; the sources are not part of it. That is what makes a source
+  two hops up from a category page (`../../raw/...`) and one hop up from
+  `wiki/log.md` (`../raw/...`).
 - **Nothing is added to your directory.** The agent's instructions are in its
   system prompt, not in files; `ls` on your wiki shows your pages and nothing
   else.

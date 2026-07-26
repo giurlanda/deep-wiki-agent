@@ -59,14 +59,18 @@ To change what an agent follows, pass `system_prompt=`.
 ```
 /                          -> your OKF bundle (wiki_path)
 ├── AGENTS.md
-├── index.md
-├── log.md
 ├── raw/                   write-protected: sources are immutable
-├── documents/
-├── entities/
-├── concepts/
-└── syntheses/
+└── wiki/
+    ├── index.md
+    ├── log.md
+    ├── assets/
+    ├── documents/
+    ├── entities/
+    ├── concepts/
+    └── syntheses/
 ```
+
+Everything the wiki owns lives under `wiki/`; `raw/` sits beside it, not inside it, so a page in a category directory reaches its source two hops up (`../../raw/...`).
 
 One `FilesystemBackend`, rooted at your bundle, with `virtual_mode=True` so the agent cannot escape it via `../` or `~/`. Nothing is added to your wiki directory.
 
@@ -98,7 +102,7 @@ result = manager.invoke(
 print(result["messages"][-1].content)
 ```
 
-The agent bootstraps the bundle structure (agreeing categories and types with you first), writes `AGENTS.md`, ingests the source, creates and cross-links the pages, updates the indexes and `log.md`, and runs `okf_lint`.
+The agent bootstraps the bundle structure (agreeing categories and types with you first), writes `AGENTS.md`, ingests the source, creates and cross-links the pages, updates the indexes and `wiki/log.md`, and runs `okf_lint`.
 
 Put your source documents in `<wiki_path>/raw/` beforehand. They are write-protected, so the agent reads them and can never alter them.
 
