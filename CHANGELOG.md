@@ -5,6 +5,21 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-07-26
+
+### Fixed
+
+- **The reader agent (`create_deep_wiki_agent`) is now truly read-only across
+  the whole bundle.** `read_only_permissions()` denied writes only under
+  `/wiki/`, so with the bundle mounted at the virtual root the reader could
+  still write `/AGENTS.md`, `/raw/**` and anything else outside `wiki/`. The
+  rule is back to `paths=["/", "/**"]` (full deny), matching what `README.md`
+  and `docs/architecture.md` already document and restoring the guarantee that
+  makes it safe to expose the reader to untrusted questions. Added an
+  end-to-end test that drives a real `write_file` call through
+  `FilesystemMiddleware` and asserts the write is rejected at the tool
+  boundary. (#4)
+
 ## [0.2.0] - 2026-07-22
 
 **Breaking release.** The agents no longer load a skill: their instructions are

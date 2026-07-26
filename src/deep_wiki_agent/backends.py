@@ -70,7 +70,7 @@ def read_only_permissions() -> list[FilesystemPermission]:
         A one-rule permission list denying ``write`` everywhere.
     """
     return [
-        FilesystemPermission(operations=["write"], paths=["/wiki/", "/wiki/**"], mode="deny"),
+        FilesystemPermission(operations=["write"], paths=["/", "/**"], mode="deny"),
     ]
 
 
