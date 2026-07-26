@@ -306,7 +306,6 @@ wheels = [
 
 [[package]]
 name = "deep-wiki-agent"
-version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "deepagents" },
