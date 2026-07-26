@@ -104,3 +104,23 @@ class TestResolveLocalWikiPath:
     def test_non_filesystem_backend_yields_none(self):
         assert resolve_local_wiki_path(StateBackend()) is None
         assert resolve_local_wiki_path(None) is None
+
+    def test_a_foreign_backend_exposing_cwd_is_not_treated_as_local(self, wiki_path):
+        """A `cwd` attribute alone must not make a backend count as local.
+
+        `cwd` is a `FilesystemBackend` implementation detail, not part of the
+        backend protocol; any other backend is free to use the name for
+        something else.
+        """
+
+        class LookalikeBackend(StateBackend):
+            cwd = wiki_path
+
+        assert resolve_local_wiki_path(LookalikeBackend()) is None
+
+    def test_filesystem_backend_pointing_at_a_missing_directory_yields_none(
+        self, tmp_path
+    ):
+        backend = FilesystemBackend(root_dir=tmp_path / "absent", virtual_mode=True)
+
+        assert resolve_local_wiki_path(backend) is None

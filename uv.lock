@@ -335,7 +335,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "colorama", marker = "extra == 'examples'" },
-    { name = "deepagents", specifier = ">=0.6.5" },
+    { name = "deepagents", specifier = ">=0.6.5,<0.7" },
     { name = "langchain", specifier = ">=1.0,<2.0" },
     { name = "langchain-openai", marker = "extra == 'examples'", specifier = ">=1.0,<2.0" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6,<2.0" },

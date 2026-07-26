@@ -14,6 +14,7 @@ requires it, and (for the manager) a runnable conformance linter.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -46,6 +47,8 @@ if TYPE_CHECKING:
     from langgraph.graph.state import CompiledStateGraph
 
 __all__ = ["create_deep_wiki_agent", "create_wiki_manager_agent"]
+
+logger = logging.getLogger(__name__)
 
 WIKI_ROOT = "/"
 """Mount point of the OKF bundle on the agent's virtual filesystem."""
@@ -111,7 +114,8 @@ def create_wiki_manager_agent(
         enable_lint_tool: When ``True`` (default) and the bundle resolves to a
             local directory, attach the ``okf_lint`` tool so the agent can run
             the conformance check its prompt asks for (it has no shell).
-            Silently skipped for backends that are not filesystem-backed.
+            Skipped for backends that are not filesystem-backed; the skip is
+            reported on the ``deep_wiki_agent.factory`` logger at ``WARNING``.
         virtual_mode: Confine the filesystem backend to the bundle directory,
             blocking ``../`` and ``~/`` escapes. Leave enabled unless you have
             a specific reason not to.
@@ -155,6 +159,17 @@ def create_wiki_manager_agent(
         local_root = resolve_local_wiki_path(effective_backend)
         if local_root is not None:
             agent_tools.append(create_okf_lint_tool(local_root))
+        else:
+            # The caller asked for the linter and is not getting it. Saying so
+            # is the only signal they have: the agent is built either way, and
+            # a bundle that is never linted degrades silently.
+            logger.warning(
+                "enable_lint_tool=True but the backend %s is not rooted at a "
+                "local directory, so the OKF linter was not attached. Run "
+                "`python -m deep_wiki_agent.okf_lint <bundle>` out of band "
+                "instead.",
+                type(effective_backend).__name__,
+            )
     lint_block = LINT_TOOL_BLOCK if len(agent_tools) > len(tools) else ""
 
     if system_prompt is None:
