@@ -1,6 +1,6 @@
 [project]
 name = "deep-wiki-agent"
-version = "0.2.0"
+version = "0.2.1"
 description = "LangChain deepagents that maintain and consult a wiki knowledge base in Open Knowledge Format (OKF)."
 readme = "README.md"
 authors = [
