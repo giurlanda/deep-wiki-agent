@@ -5,6 +5,50 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-07-26
+
+### Added
+
+- **`okf_lint` validates the path-valued frontmatter fields.** `resource` and
+  `sources` are where a page records what it derives from, and until now only
+  the markdown links in the body were checked, so a broken or absolute path
+  there went unnoticed — exactly where the page → source traceability lives.
+  They now get the same treatment as body links: broken paths and absolute
+  paths are errors, URLs and prose `resource` values are left alone, and a page
+  cited in another's `sources` counts as an inbound reference, so it is no
+  longer flagged an orphan. (#10)
+- **`--fix` makes absolute paths relative.** The conversion is mechanical — the
+  page's own location is known — so absolute links and absolute frontmatter
+  paths whose target exists are now rewritten relative to their page and
+  reported as fixes instead of errors. One whose target does *not* exist is
+  left untouched and still reported: rewriting it would only move a broken link
+  around. (#10)
+- **`type` values are checked against `AGENTS.md`.** The linter reads the
+  vocabulary the bundle declares — the section whose heading mentions "types",
+  taking the backticked names in it, or the lead token of each list item or
+  table row when they are written plainly — and flags every `type` not in it,
+  reporting a mere difference in capitalization as such. When `AGENTS.md`
+  declares no types, the previous sprawl heuristic stays in charge. (#10)
+- **The `log.md` entry format is linted.** The `## [YYYY-MM-DD] type | title`
+  prefix exists so the history stays greppable; entries that drift from it, or
+  that use a kind other than `ingest`/`query`/`lint`/`refactor`, are now
+  warnings. (#10)
+- **Duplicate slugs and titles are reported.** The file path is the identity of
+  a concept, so the same slug under two categories — or two paths sharing a
+  title, matched case-insensitively — is one concept with two identities, and
+  is now a warning. (#10)
+- **An `okf-lint` console script.** `[project.scripts]` now exposes the
+  validator as `okf-lint <bundle> [--fix] [--json]`, usable with `uvx`/`pipx`
+  and more convenient in CI than `python -m deep_wiki_agent.okf_lint`, which
+  keeps working unchanged. (#10)
+
+### Fixed
+
+- **`AGENTS.md` is no longer flagged as a malformed concept page.** It was in
+  neither the reserved names nor the skipped directories, so a perfectly
+  legitimate bundle schema file was reported both for missing frontmatter and
+  as an orphan. It is now structural, like `index.md` and `log.md`. (#10)
+
 ## [0.3.1] - 2026-07-26
 
 ### Fixed

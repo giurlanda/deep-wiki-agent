@@ -148,10 +148,11 @@ validator itself.
 
 `create_okf_lint_tool` closes the gap: it wraps
 `deep_wiki_agent.okf_lint.lint` — ordinary imported code — as a LangChain tool
-bound to one bundle. The same module keeps an `argparse` entry point, so a human
-can run `python -m deep_wiki_agent.okf_lint <bundle> [--fix] [--json]` against
-the same implementation. It is stdlib-only, so a bundle stays verifiable by
-anyone holding the directory.
+bound to one bundle. The same module keeps an `argparse` entry point, installed
+as the `okf-lint` console script (and still reachable as `python -m
+deep_wiki_agent.okf_lint`), so a human can run `okf-lint <bundle> [--fix]
+[--json]` against the same implementation. It is stdlib-only, so a bundle stays
+verifiable by anyone holding the directory.
 
 `lint` itself walks the bundle through a small `list_pages`/`read`/`exists`/
 `edit` interface rather than `Path` directly. A local directory is wrapped in

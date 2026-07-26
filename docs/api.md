@@ -94,4 +94,4 @@ prompt = READER_SYSTEM_PROMPT_TEMPLATE.format(
 | `bundled_skills_dir`, `okf_wiki_skill_dir`, `okf_lint_script` | — |
 | `OKF_WIKI_SKILL_NAME`, `DEFAULT_SKILLS_MOUNT` | — |
 | `skills_mount`, `skills_dir`, `extra_skills` | `system_prompt=` to change the instructions; `create_deep_agent`'s own `skills=` passthrough for genuinely extra skills |
-| `scripts/okf_lint.py` inside the installed skill | `python -m deep_wiki_agent.okf_lint` |
+| `scripts/okf_lint.py` inside the installed skill | the `okf-lint` console script, or `python -m deep_wiki_agent.okf_lint` |
