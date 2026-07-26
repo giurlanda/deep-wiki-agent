@@ -153,27 +153,32 @@ can run `python -m deep_wiki_agent.okf_lint <bundle> [--fix] [--json]` against
 the same implementation. It is stdlib-only, so a bundle stays verifiable by
 anyone holding the directory.
 
-Two design details:
+`lint` itself walks the bundle through a small `list_pages`/`read`/`exists`/
+`edit` interface rather than `Path` directly. A local directory is wrapped in
+it automatically; `tools/lint.py` additionally adapts a deepagents
+`BackendProtocol` (state, store, sandbox) to the same interface over its own
+`glob`/`read`/`edit`. `okf_lint.py` itself never imports `deepagents`, so the
+shell entry point still needs nothing beyond the standard library.
 
-- **The bundle path is captured in the closure**, not exposed as a tool
-  argument, so the model cannot aim the linter (and its `fix=True` writes) at
-  an arbitrary directory.
+Two more design details:
+
+- **The bundle (path or backend) is captured in the closure**, not exposed as
+  a tool argument, so the model cannot aim the linter (and its `fix=True`
+  writes) at an arbitrary location.
 - **The report is capped** at 50 findings per section. A badly broken bundle
   would otherwise flood the context window; the summary counts stay exact.
 
-The tool walks a real directory, so it is attached only when the bundle
-resolves to one. For other backends the factory skips it silently *and* omits
-its paragraph from the prompt — the agent is never told about a tool it does
-not have. The lint *checklist* stays in the prompt either way: the judgment a
-script cannot give does not depend on the script being there.
+Because the abstraction covers every backend, the factory attaches the tool
+unconditionally whenever `enable_lint_tool=True` — there is no longer a
+backend type the linter cannot reach.
 
 ## Module map
 
 | Module | Responsibility |
 |---|---|
 | `factory.py` | the two public factories; argument validation, assembly |
-| `backends.py` | the permission sets and local-root resolution |
+| `backends.py` | the permission sets |
 | `prompts.py` | the two system prompt templates and the not-found default |
-| `okf_lint.py` | the OKF conformance validator, plus its shell entry point |
-| `tools/lint.py` | the `okf_lint` tool over that validator |
+| `okf_lint.py` | the OKF conformance validator (backend-agnostic), plus its shell entry point |
+| `tools/lint.py` | the `okf_lint` tool and its deepagents backend adapter |
 | `skills/okf-wiki/` | the skill, at the repo root: not shipped, not mounted |

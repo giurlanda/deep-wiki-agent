@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from deepagents.backends import StoreBackend
+from langgraph.store.memory import InMemoryStore
 
 INDEX_MD = """\
 # Test wiki
@@ -54,6 +56,27 @@ def wiki_path(tmp_path: Path) -> Path:
     )
     (root / "raw" / "source.txt").write_text("fonte originale\n", encoding="utf-8")
     return root
+
+
+@pytest.fixture
+def store_backend() -> StoreBackend:
+    """A `StoreBackend`, pre-populated with the same conformant bundle as `wiki_path`.
+
+    Backed by a plain `InMemoryStore` rather than a LangGraph runtime, so it
+    can be exercised directly in a unit test — the same shape a real deep
+    agent would hand the linter, without needing a compiled graph.
+    """
+    backend = StoreBackend(store=InMemoryStore(), namespace=lambda _rt: ("wiki",))
+    pages = {
+        "/index.md": INDEX_MD,
+        "/log.md": LOG_MD,
+        "/concepts/index.md": CONCEPTS_INDEX_MD,
+        "/concepts/margine-operativo.md": CONCEPT_MD,
+        "/raw/source.txt": "fonte originale\n",
+    }
+    for path, content in pages.items():
+        backend.write(path, content)
+    return backend
 
 
 @pytest.fixture

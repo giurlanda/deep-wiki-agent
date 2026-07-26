@@ -151,6 +151,87 @@ class TestRunOkfLint:
             run_okf_lint(tmp_path / "nope")
 
 
+class TestRunOkfLintOnBackends:
+    """A bundle held in a non-local backend is just as lintable.
+
+    The linter walks it through `glob`/`read`/`edit` instead of `Path`, so the
+    same checks apply regardless of where the bundle actually lives.
+    """
+
+    def test_clean_bundle_has_no_errors(self, store_backend):
+        result = run_okf_lint(backend=store_backend)
+
+        assert result["errors"] == []
+
+    def test_detects_broken_link(self, store_backend):
+        store_backend.write("/concepts/rotta.md", BROKEN_PAGE)
+
+        messages = [e["msg"] for e in run_okf_lint(backend=store_backend)["errors"]]
+
+        assert any("broken link" in m for m in messages)
+
+    def test_detects_missing_required_field(self, store_backend):
+        store_backend.write(
+            "/concepts/senza-tipo.md", "---\ntitle: Senza tipo\n---\n\nCorpo.\n"
+        )
+
+        messages = [e["msg"] for e in run_okf_lint(backend=store_backend)["errors"]]
+
+        assert any("required OKF field missing: `type`" in m for m in messages)
+
+    def test_raw_directory_is_excluded_from_validation(self, store_backend):
+        files = [e["file"] for e in run_okf_lint(backend=store_backend)["errors"]]
+
+        assert not any(f.startswith("raw/") for f in files)
+
+    def test_fix_normalizes_bad_timestamp(self, store_backend):
+        store_backend.write("/concepts/data-storta.md", BAD_TIMESTAMP_PAGE)
+
+        assert run_okf_lint(backend=store_backend)["errors"]
+
+        result = run_okf_lint(backend=store_backend, fix=True)
+
+        assert result["fixes"]
+        content = store_backend.read("/concepts/data-storta.md").file_data["content"]
+        assert "timestamp: ieri" not in content
+
+
+class TestCreateOkfLintToolOnBackends:
+    def test_reports_a_clean_bundle(self, store_backend):
+        report = create_okf_lint_tool(backend=store_backend).invoke({})
+
+        assert "0 error(s)" in report
+
+    def test_reports_errors(self, store_backend):
+        store_backend.write("/concepts/rotta.md", BROKEN_PAGE)
+
+        report = create_okf_lint_tool(backend=store_backend).invoke({})
+
+        assert "ERROR" in report
+        assert "broken link" in report
+
+    def test_fix_applies_through_the_tool(self, store_backend):
+        store_backend.write("/concepts/data-storta.md", BAD_TIMESTAMP_PAGE)
+
+        report = create_okf_lint_tool(backend=store_backend).invoke({"fix": True})
+
+        assert "fix(es) applied" in report
+
+
+class TestLintTargetArgumentValidation:
+    def test_run_requires_exactly_one_target(self, wiki_path, store_backend):
+        with pytest.raises(ValueError, match="exactly one of"):
+            run_okf_lint(wiki_path, backend=store_backend)
+        with pytest.raises(ValueError, match="exactly one of"):
+            run_okf_lint()
+
+    def test_create_tool_requires_exactly_one_target(self, wiki_path, store_backend):
+        with pytest.raises(ValueError, match="exactly one of"):
+            create_okf_lint_tool(wiki_path, backend=store_backend)
+        with pytest.raises(ValueError, match="exactly one of"):
+            create_okf_lint_tool()
+
+
 class TestCreateOkfLintTool:
     def test_tool_metadata(self, wiki_path):
         tool = create_okf_lint_tool(wiki_path)

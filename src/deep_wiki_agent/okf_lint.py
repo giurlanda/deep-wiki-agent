@@ -22,18 +22,55 @@ It checks:
 
 Deliberately stdlib-only: a bundle must stay verifiable by anyone holding the
 directory, without installing this library.
+
+``lint`` walks the bundle through a small ``ls``/``read``/``edit`` interface
+(:class:`Backend`) rather than ``Path`` directly, so a caller can hand it
+either a local directory (wrapped automatically in :class:`_PathBackend`) or
+any object implementing that interface — in particular a deepagents
+``BackendProtocol`` instance (state, store, sandbox), via the adapter in
+:mod:`deep_wiki_agent.tools.lint`. This module itself never imports
+``deepagents``, so the shell entry point stays usable without installing it.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import posixpath
 import re
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Protocol
 
 __all__ = ["lint", "main", "parse_frontmatter"]
+
+
+class Backend(Protocol):
+    """The interface :func:`lint` needs to walk and (optionally) fix a bundle.
+
+    Every path in this interface is a bundle-absolute, POSIX-style string
+    (``/concepts/foo.md``), matching how deepagents backends address files at
+    the agent's virtual root. Implementations resolve those against whatever
+    they actually store the bundle in.
+    """
+
+    def list_pages(self) -> list[str]:
+        """Return every markdown page's absolute path, excluding :data:`SKIP_DIRS`."""
+        ...
+
+    def read(self, path: str) -> str:
+        """Return the full text content of the file at ``path``."""
+        ...
+
+    def exists(self, path: str) -> bool:
+        """Return whether ``path`` refers to an existing, readable file."""
+        ...
+
+    def edit(self, path: str, old: str, new: str) -> None:
+        """Replace the first occurrence of ``old`` with ``new`` in ``path``."""
+        ...
+
 
 RESERVED = frozenset({"index.md", "log.md"})
 """File names that are structural, not concepts, and so skip concept checks."""
@@ -111,17 +148,41 @@ def _is_iso8601(value: object) -> bool:
     return True
 
 
-def _collect(root: Path) -> list[Path]:
-    """Return every markdown page of the bundle, excluding :data:`SKIP_DIRS`."""
-    return [
-        path
-        for path in sorted(root.rglob("*.md"))
-        if not any(part in SKIP_DIRS for part in path.relative_to(root).parts)
-    ]
+class _PathBackend:
+    """Adapts a local directory to the :class:`Backend` interface.
+
+    Built automatically by :func:`lint` when called with a ``Path``, so
+    existing local-directory callers (the CLI, ``run_okf_lint``) are unaffected
+    by the abstraction.
+    """
+
+    def __init__(self, root: Path) -> None:
+        self._root = root
+
+    def _real(self, path: str) -> Path:
+        return self._root / path.lstrip("/")
+
+    def list_pages(self) -> list[str]:
+        return [
+            "/" + path.relative_to(self._root).as_posix()
+            for path in sorted(self._root.rglob("*.md"))
+            if not any(part in SKIP_DIRS for part in path.relative_to(self._root).parts)
+        ]
+
+    def read(self, path: str) -> str:
+        return self._real(path).read_text(encoding="utf-8", errors="replace")
+
+    def exists(self, path: str) -> bool:
+        return self._real(path).exists()
+
+    def edit(self, path: str, old: str, new: str) -> None:
+        real = self._real(path)
+        text = real.read_text(encoding="utf-8")
+        real.write_text(text.replace(old, new, 1), encoding="utf-8")
 
 
-def _resolve(root: Path, page: Path, target: str) -> Path | None:
-    """Resolve a markdown link target to a local path.
+def _resolve(page: str, target: str) -> str | None:
+    """Resolve a markdown link target to a bundle-absolute path.
 
     Absolute (``/``-prefixed) targets are non-conformant — links must be
     relative to the page holding them — but they are still resolved against the
@@ -129,20 +190,22 @@ def _resolve(root: Path, page: Path, target: str) -> Path | None:
     link, rather than twice with a spurious "broken link" on top.
 
     Args:
-        root: Bundle root, against which absolute targets resolve.
-        page: Page holding the link, for relative targets.
+        page: Absolute path of the page holding the link, for relative targets.
         target: The link target, possibly carrying an ``#anchor``.
 
     Returns:
-        The resolved path, or ``None`` for external links and bare anchors,
-        which are outside the linter's remit.
+        The resolved absolute path, or ``None`` for external links and bare
+        anchors, which are outside the linter's remit.
     """
     stripped = target.split("#", maxsplit=1)[0].strip()
     if not stripped or stripped.startswith(("http://", "https://", "mailto:")):
         return None
-    if stripped.startswith("/"):
-        return (root / stripped.lstrip("/")).resolve()
-    return (page.parent / stripped).resolve()
+    base = (
+        stripped
+        if stripped.startswith("/")
+        else posixpath.join(posixpath.dirname(page), stripped)
+    )
+    return posixpath.normpath(base)
 
 
 def _check_fields(rel: str, front: Frontmatter) -> tuple[list[Finding], list[Finding]]:
@@ -166,7 +229,7 @@ def _check_fields(rel: str, front: Frontmatter) -> tuple[list[Finding], list[Fin
 
 
 def _check_timestamp(
-    page: Path, rel: str, text: str, front: Frontmatter, *, fix: bool
+    backend: Backend, page: str, rel: str, front: Frontmatter, *, fix: bool
 ) -> tuple[list[Finding], list[Finding]]:
     """Validate a page's ``timestamp``, rewriting it in place when ``fix``.
 
@@ -181,15 +244,12 @@ def _check_timestamp(
         return [{"file": rel, "msg": f"timestamp is not ISO 8601: {stamp}"}], []
 
     normalized = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-    page.write_text(
-        text.replace(f"timestamp: {stamp}", f"timestamp: {normalized}", 1),
-        encoding="utf-8",
-    )
+    backend.edit(page, f"timestamp: {stamp}", f"timestamp: {normalized}")
     return [], [{"file": rel, "msg": f"timestamp normalized -> {normalized}"}]
 
 
 def _check_links(
-    root: Path, page: Path, rel: str, text: str, inbound: dict[Path, int]
+    backend: Backend, page: str, rel: str, text: str, inbound: dict[str, int]
 ) -> list[Finding]:
     """Report broken and absolute links, and count inbound links into ``inbound``.
 
@@ -201,9 +261,10 @@ def _check_links(
     """
     errors: list[Finding] = []
     for label, target in LINK_RE.findall(text):
-        dest = _resolve(root, page, target)
+        dest = _resolve(page, target)
         if dest is None:
             continue
+        dest_exists = backend.exists(dest)
         if target.lstrip().startswith("/"):
             errors.append(
                 {
@@ -214,53 +275,56 @@ def _check_links(
                     ),
                 }
             )
-        elif not dest.exists():
+        elif not dest_exists:
             errors.append({"file": rel, "msg": f"broken link: [{label}]({target})"})
-        if dest.exists() and dest in inbound and dest != page.resolve():
+        if dest_exists and dest in inbound and dest != page:
             inbound[dest] += 1
     return errors
 
 
-def _check_orphans(
-    root: Path, pages: list[Path], inbound: dict[Path, int]
-) -> list[Finding]:
+def _check_orphans(pages: list[str], inbound: dict[str, int]) -> list[Finding]:
     """Report concept pages that nothing links to."""
     return [
         {
-            "file": page.relative_to(root).as_posix(),
+            "file": page.lstrip("/"),
             "msg": "orphan page: no inbound links",
         }
         for page in pages
-        if page.name not in RESERVED and inbound.get(page.resolve(), 0) == 0
+        if posixpath.basename(page) not in RESERVED and inbound.get(page, 0) == 0
     ]
 
 
-def _check_indexes(root: Path, pages: list[Path]) -> list[Finding]:
+def _check_indexes(backend: Backend, pages: list[str]) -> list[Finding]:
     """Report directories whose ``index.md`` is missing or out of date.
 
     The check is textual on purpose: an index that mentions a page's file name
     anywhere counts as listing it, so hand-written prose indexes pass.
     """
     warnings: list[Finding] = []
-    for directory in sorted({page.parent for page in pages}):
+    for directory in sorted({posixpath.dirname(page) for page in pages}):
         siblings = [
             page
             for page in pages
-            if page.parent == directory and page.name not in RESERVED
+            if posixpath.dirname(page) == directory
+            and posixpath.basename(page) not in RESERVED
         ]
         if not siblings:
             continue
 
-        index = directory / "index.md"
-        rel = index.relative_to(root).as_posix()
-        if not index.exists():
+        index = posixpath.join(directory, "index.md")
+        rel = index.lstrip("/")
+        if not backend.exists(index):
             warnings.append(
                 {"file": rel, "msg": f"index.md missing for {len(siblings)} pages"}
             )
             continue
 
-        text = index.read_text(encoding="utf-8", errors="replace")
-        missing = [page.name for page in siblings if page.name not in text]
+        text = backend.read(index)
+        missing = [
+            posixpath.basename(page)
+            for page in siblings
+            if posixpath.basename(page) not in text
+        ]
         if missing:
             overflow = len(missing) - _MAX_LISTED_PAGES
             warnings.append(
@@ -295,11 +359,13 @@ def _check_type_sprawl(types: dict[str, list[str]]) -> list[Finding]:
     ]
 
 
-def lint(root: Path, *, fix: bool = False) -> LintReport:
+def lint(root: Path | Backend, *, fix: bool = False) -> LintReport:
     """Validate an OKF bundle.
 
     Args:
-        root: Bundle root directory.
+        root: Bundle root directory, or an object implementing :class:`Backend`
+            for bundles held somewhere other than the local filesystem (see
+            :mod:`deep_wiki_agent.tools.lint` for the deepagents adapter).
         fix: When ``True``, malformed timestamps are rewritten in place and
             reported as fixes instead of errors. Nothing else is modified.
 
@@ -308,10 +374,11 @@ def lint(root: Path, *, fix: bool = False) -> LintReport:
         ``{"file": ..., "msg": ...}`` mapping whose ``file`` is a
         bundle-relative path.
     """
-    pages = _collect(root)
+    backend: Backend = _PathBackend(root) if isinstance(root, Path) else root
+    pages = backend.list_pages()
     if not pages:
         return (
-            [{"file": str(root), "msg": "no markdown file found in the bundle"}],
+            [{"file": "<bundle>", "msg": "no markdown file found in the bundle"}],
             [],
             [],
         )
@@ -319,14 +386,14 @@ def lint(root: Path, *, fix: bool = False) -> LintReport:
     errors: list[Finding] = []
     warnings: list[Finding] = []
     fixes: list[Finding] = []
-    inbound: dict[Path, int] = {page.resolve(): 0 for page in pages}
+    inbound: dict[str, int] = dict.fromkeys(pages, 0)
     types: dict[str, list[str]] = {}
 
     for page in pages:
-        rel = page.relative_to(root).as_posix()
-        text = page.read_text(encoding="utf-8", errors="replace")
+        rel = page.lstrip("/")
+        text = backend.read(page)
         front, _ = parse_frontmatter(text)
-        is_reserved = page.name in RESERVED
+        is_reserved = posixpath.basename(page) in RESERVED
 
         if front is None:
             if not is_reserved:
@@ -337,17 +404,17 @@ def lint(root: Path, *, fix: bool = False) -> LintReport:
                 errors.extend(field_errors)
                 warnings.extend(field_warnings)
             stamp_errors, stamp_fixes = _check_timestamp(
-                page, rel, text, front, fix=fix
+                backend, page, rel, front, fix=fix
             )
             errors.extend(stamp_errors)
             fixes.extend(stamp_fixes)
             if front.get("type"):
                 types.setdefault(str(front["type"]), []).append(rel)
 
-        errors.extend(_check_links(root, page, rel, text, inbound))
+        errors.extend(_check_links(backend, page, rel, text, inbound))
 
-    warnings.extend(_check_orphans(root, pages, inbound))
-    warnings.extend(_check_indexes(root, pages))
+    warnings.extend(_check_orphans(pages, inbound))
+    warnings.extend(_check_indexes(backend, pages))
     warnings.extend(_check_type_sprawl(types))
     return errors, warnings, fixes
 
