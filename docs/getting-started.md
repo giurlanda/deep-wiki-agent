@@ -156,7 +156,9 @@ for error in report["errors"]:
     print(error["file"], error["msg"])
 ```
 
-Pass `fix=True` to normalize malformed timestamps in place.
+Pass `fix=True` to normalize malformed timestamps in place. For a bundle held
+in a non-local backend (state, store, sandbox), pass it instead of a path:
+`run_okf_lint(backend=my_backend)`.
 
 The same validator is stdlib-only and runnable from a shell:
 

@@ -183,7 +183,7 @@ reader = create_deep_wiki_agent(
 )
 ```
 
-The `okf_lint` tool walks a real directory, so it is attached only when the bundle resolves to one; for other backends the factory skips it silently and the prompt does not mention it.
+The `okf_lint` tool is attached regardless of backend: it walks the bundle through the backend's own `glob`/`read`/`edit` methods, so a state, store, or sandbox-backed bundle is just as self-validating as a local directory.
 
 ## Linting
 
@@ -202,6 +202,12 @@ or from the shell — the validator is stdlib-only and exits `1` on errors, so i
 
 ```bash
 python -m deep_wiki_agent.okf_lint ./my-wiki [--fix] [--json]
+```
+
+For a bundle held in a non-local backend, pass it instead of a path:
+
+```python
+report = run_okf_lint(backend=my_backend)
 ```
 
 ## Customizing the instructions
@@ -231,7 +237,7 @@ To add genuine skills alongside the agent, `create_deep_agent`'s own `skills=` p
 
 - `create_wiki_manager_agent(*, model, wiki_path=None, backend=None, ...)` — read/write agent over an OKF bundle.
 - `create_deep_wiki_agent(*, model, wiki_path=None, backend=None, not_found_message=..., ...)` — read-only agent that answers only from the bundle.
-- `create_okf_lint_tool(wiki_path)` / `run_okf_lint(wiki_path, *, fix=False)` — OKF conformance validation.
+- `create_okf_lint_tool(wiki_path=None, *, backend=None)` / `run_okf_lint(wiki_path=None, *, backend=None, fix=False)` — OKF conformance validation, against a local directory or any deepagents backend.
 - `read_only_permissions()` / `write_protect_permissions(paths)` — the permission sets, reusable in your own agents.
 - `MANAGER_SYSTEM_PROMPT_TEMPLATE` / `READER_SYSTEM_PROMPT_TEMPLATE` — the instructions each agent follows, as `str.format` templates.
 - `BUNDLE_SKELETON` — the bundle layout the manager bootstraps, as bundle-relative paths.

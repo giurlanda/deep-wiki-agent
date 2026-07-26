@@ -13,14 +13,7 @@ regardless of what the model was told, or talked into.
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import TYPE_CHECKING
-
-from deepagents.backends import FilesystemBackend
 from deepagents.middleware.filesystem import FilesystemPermission
-
-if TYPE_CHECKING:
-    from deepagents.backends.protocol import BackendProtocol
 
 __all__ = [
     "RAW_DIR",
@@ -73,27 +66,3 @@ def read_only_permissions() -> list[FilesystemPermission]:
     return [
         FilesystemPermission(operations=["write"], paths=["/", "/**"], mode="deny"),
     ]
-
-
-def resolve_local_wiki_path(backend: BackendProtocol | None) -> Path | None:
-    """Return the local directory a backend is rooted at, if any.
-
-    Used to decide whether the OKF linter tool — which walks a real directory —
-    can be attached to an agent. Returns ``None`` for backends that are not
-    filesystem-backed (state, store, sandbox), where linting must instead be
-    run out of band by the caller.
-
-    Args:
-        backend: The backend to inspect, or ``None``.
-
-    Returns:
-        The local bundle root, or ``None`` when it is not a local directory.
-    """
-    # An explicit type check rather than duck typing on ``cwd``: the attribute
-    # is an implementation detail of ``FilesystemBackend``, and probing for it
-    # would silently treat any future backend that happens to expose a ``cwd``
-    # as local. Only this class is contractually rooted at a real directory.
-    if not isinstance(backend, FilesystemBackend):
-        return None
-    path = Path(backend.cwd)
-    return path if path.is_dir() else None

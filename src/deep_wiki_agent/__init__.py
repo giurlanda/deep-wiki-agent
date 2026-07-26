@@ -36,7 +36,7 @@ from deep_wiki_agent.prompts import (
 )
 from deep_wiki_agent.tools import create_okf_lint_tool, run_okf_lint
 
-__version__ = "0.2.2"
+__version__ = "0.3.0"
 
 __all__ = [
     "BUNDLE_SKELETON",

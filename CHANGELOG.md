@@ -5,6 +5,29 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-07-26
+
+### Added
+
+- **`okf_lint` is now attachable to any backend, not just a local directory.**
+  `deep_wiki_agent.okf_lint.lint` walks the bundle through a small
+  `list_pages`/`read`/`exists`/`edit` interface instead of `Path` directly;
+  local directories are still passed as a `Path` (wrapped automatically), and
+  `run_okf_lint` / `create_okf_lint_tool` now also accept a `backend=`
+  keyword — a deepagents `BackendProtocol` (state, store, sandbox) validated
+  in place through its own `glob`/`read`/`edit` methods, `--fix` included. The
+  `okf_lint.py` module itself still imports nothing beyond the standard
+  library, so the shell entry point keeps working without installing
+  `deepagents`. `create_wiki_manager_agent` now attaches the linter
+  unconditionally when `enable_lint_tool=True`, regardless of which backend it
+  was given. (#8)
+
+### Removed
+
+- `deep_wiki_agent.backends.resolve_local_wiki_path`, whose only purpose was
+  gating the linter to filesystem-backed bundles — the gate this release
+  removes. (#8)
+
 ## [0.2.2] - 2026-07-26
 
 ### Fixed
