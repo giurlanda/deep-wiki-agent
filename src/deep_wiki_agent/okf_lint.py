@@ -148,6 +148,58 @@ def _is_iso8601(value: object) -> bool:
     return True
 
 
+_KNOWN_FORMATS = (
+    "%Y/%m/%d %H:%M:%S",
+    "%Y/%m/%d %H:%M",
+    "%Y/%m/%d",
+    "%d-%m-%Y %H:%M:%S",
+    "%d-%m-%Y %H:%M",
+    "%d-%m-%Y",
+    "%d/%m/%Y %H:%M:%S",
+    "%d/%m/%Y %H:%M",
+    "%d/%m/%Y",
+    "%d.%m.%Y",
+    "%Y%m%d",
+    "%d %B %Y",
+    "%d %b %Y",
+    "%B %d, %Y",
+    "%b %d, %Y",
+)
+"""Timestamp spellings seen in the wild, tried in order by :func:`_coerce_timestamp`.
+
+Day-first only for the ambiguous separator forms: ``19-07-2026`` is unambiguous
+once ``%Y-...`` has already been ruled out by :func:`_is_iso8601`, whereas
+guessing month-first would silently invent a different date.
+"""
+
+
+def _coerce_timestamp(value: str) -> str | None:
+    """Normalize a non-ISO timestamp to ISO 8601, preserving the date it states.
+
+    A malformed timestamp still carries the page's real last-update date, so it
+    is worth parsing rather than discarding. Values with no time component are
+    anchored at midnight UTC; naive values are read as UTC, since OKF pages
+    carry no timezone of their own.
+
+    Args:
+        value: The raw frontmatter value, already known not to be ISO 8601.
+
+    Returns:
+        The normalized ``YYYY-MM-DDTHH:MM:SSZ`` string, or ``None`` when no
+        known format matches.
+    """
+    text = value.strip().strip("'\"")
+    if not text:
+        return None
+    for fmt in _KNOWN_FORMATS:
+        try:
+            parsed = datetime.strptime(text, fmt)  # noqa: DTZ007 - naive means UTC here
+        except ValueError:
+            continue
+        return parsed.replace(tzinfo=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return None
+
+
 class _PathBackend:
     """Adapts a local directory to the :class:`Backend` interface.
 
@@ -233,6 +285,10 @@ def _check_timestamp(
 ) -> tuple[list[Finding], list[Finding]]:
     """Validate a page's ``timestamp``, rewriting it in place when ``fix``.
 
+    Fixing preserves the date the page states whenever it can be parsed at all
+    (see :func:`_coerce_timestamp`); the current time is only a last resort,
+    and the report says so, because that case destroys information.
+
     Returns:
         An ``(errors, fixes)`` pair. A malformed timestamp is an error when
         ``fix`` is off and a fix when it is on — never both.
@@ -243,9 +299,17 @@ def _check_timestamp(
     if not fix:
         return [{"file": rel, "msg": f"timestamp is not ISO 8601: {stamp}"}], []
 
-    normalized = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    normalized = _coerce_timestamp(str(stamp))
+    if normalized is not None:
+        msg = f"timestamp normalized: {stamp} -> {normalized}"
+    else:
+        normalized = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        msg = (
+            f"timestamp unparseable: {stamp} - replaced with the current time "
+            f"-> {normalized} (original date lost)"
+        )
     backend.edit(page, f"timestamp: {stamp}", f"timestamp: {normalized}")
-    return [], [{"file": rel, "msg": f"timestamp normalized -> {normalized}"}]
+    return [], [{"file": rel, "msg": msg}]
 
 
 def _check_links(
@@ -367,7 +431,8 @@ def lint(root: Path | Backend, *, fix: bool = False) -> LintReport:
             for bundles held somewhere other than the local filesystem (see
             :mod:`deep_wiki_agent.tools.lint` for the deepagents adapter).
         fix: When ``True``, malformed timestamps are rewritten in place and
-            reported as fixes instead of errors. Nothing else is modified.
+            reported as fixes instead of errors, keeping the date they state
+            whenever it is parseable. Nothing else is modified.
 
     Returns:
         An ``(errors, warnings, fixes)`` triple. Each finding is a
@@ -448,7 +513,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("bundle", help="directory of the bundle to validate")
     parser.add_argument(
-        "--fix", action="store_true", help="normalize malformed timestamps in place"
+        "--fix",
+        action="store_true",
+        help="normalize malformed timestamps in place, preserving their date",
     )
     parser.add_argument(
         "--json", action="store_true", help="emit machine-readable output"

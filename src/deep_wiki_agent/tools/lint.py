@@ -97,7 +97,8 @@ def run_okf_lint(
             filesystem) holding the bundle, validated in place through its
             ``glob``/``read``/``edit`` methods. Mutually exclusive with
             ``wiki_path``.
-        fix: When ``True``, malformed timestamps are normalized in place.
+        fix: When ``True``, malformed timestamps are normalized in place,
+            preserving the date they state whenever it is parseable.
             ``False`` reports only.
 
     Returns:
@@ -198,8 +199,9 @@ def create_okf_lint_tool(
         complete.
 
         Args:
-            fix: When true, normalize malformed timestamps in place. When
-                false (default), report findings without modifying anything.
+            fix: When true, normalize malformed timestamps in place, keeping
+                the date they state when it is parseable. When false
+                (default), report findings without modifying anything.
 
         Returns:
             A report listing FIX / ERROR / WARN lines and a summary count.

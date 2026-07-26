@@ -8,6 +8,7 @@ import sys
 
 import pytest
 
+from deep_wiki_agent.okf_lint import _coerce_timestamp, _is_iso8601
 from deep_wiki_agent.tools.lint import (
     OKF_LINT_TOOL_NAME,
     create_okf_lint_tool,
@@ -55,6 +56,17 @@ type: Concept
 title: Data storta
 description: Timestamp non ISO.
 timestamp: ieri
+---
+
+Corpo.
+"""
+
+SLASHED_TIMESTAMP_PAGE = """\
+---
+type: Concept
+title: Data con barre
+description: Timestamp parsabile ma non ISO.
+timestamp: 2026/07/19
 ---
 
 Corpo.
@@ -146,9 +158,60 @@ class TestRunOkfLint:
         assert result["fixes"]
         assert "timestamp: ieri" not in page.read_text(encoding="utf-8")
 
+    def test_fix_preserves_a_parseable_date(self, wiki_path):
+        """The page's real last-update date survives normalization."""
+        page = wiki_path / "concepts" / "data-barrata.md"
+        page.write_text(SLASHED_TIMESTAMP_PAGE, encoding="utf-8")
+
+        result = run_okf_lint(wiki_path, fix=True)
+
+        assert "timestamp: 2026-07-19T00:00:00Z" in page.read_text(encoding="utf-8")
+        assert any("2026/07/19 -> 2026-07-19" in f["msg"] for f in result["fixes"])
+
+    def test_fix_reports_when_the_original_date_is_lost(self, wiki_path):
+        """Falling back to now() destroys information, so it must be visible."""
+        page = wiki_path / "concepts" / "data-storta.md"
+        page.write_text(BAD_TIMESTAMP_PAGE, encoding="utf-8")
+
+        messages = [f["msg"] for f in run_okf_lint(wiki_path, fix=True)["fixes"]]
+
+        assert any("unparseable" in m and "original date lost" in m for m in messages)
+
     def test_missing_directory_raises(self, tmp_path):
         with pytest.raises(NotADirectoryError):
             run_okf_lint(tmp_path / "nope")
+
+
+class TestCoerceTimestamp:
+    """Normalization keeps the stated date; `now()` is only the last resort."""
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("2026/07/19", "2026-07-19T00:00:00Z"),
+            ("2026/07/19 10:30", "2026-07-19T10:30:00Z"),
+            ("2026/07/19 10:30:15", "2026-07-19T10:30:15Z"),
+            ("19-07-2026", "2026-07-19T00:00:00Z"),
+            ("19-07-2026 10:30", "2026-07-19T10:30:00Z"),
+            ("19/07/2026", "2026-07-19T00:00:00Z"),
+            ("19.07.2026", "2026-07-19T00:00:00Z"),
+            ("20260719", "2026-07-19T00:00:00Z"),
+            ("19 July 2026", "2026-07-19T00:00:00Z"),
+            ("Jul 19, 2026", "2026-07-19T00:00:00Z"),
+            ("  2026/07/19  ", "2026-07-19T00:00:00Z"),
+        ],
+    )
+    def test_parses_common_spellings(self, raw, expected):
+        assert _coerce_timestamp(raw) == expected
+
+    @pytest.mark.parametrize("raw", ["ieri", "", "   ", "sometime in 2026", "19-07"])
+    def test_returns_none_for_unparseable_values(self, raw):
+        assert _coerce_timestamp(raw) is None
+
+    def test_iso_values_never_reach_coercion(self):
+        """`lint` only coerces what `_is_iso8601` rejects."""
+        assert _is_iso8601("2026-07-19T10:30:00Z")
+        assert not _is_iso8601("2026/07/19")
 
 
 class TestRunOkfLintOnBackends:
@@ -314,13 +377,13 @@ class TestShellEntryPoint:
         assert set(payload) == {"errors", "warnings", "fixes"}
 
     def test_fix_normalizes_in_place(self, wiki_path):
-        page = wiki_path / "concepts" / "data-storta.md"
-        page.write_text(BAD_TIMESTAMP_PAGE, encoding="utf-8")
+        page = wiki_path / "concepts" / "data-barrata.md"
+        page.write_text(SLASHED_TIMESTAMP_PAGE, encoding="utf-8")
 
         result = self.run(str(wiki_path), "--fix")
 
         assert "timestamp normalized" in result.stdout
-        assert "timestamp: ieri" not in page.read_text(encoding="utf-8")
+        assert "timestamp: 2026-07-19T00:00:00Z" in page.read_text(encoding="utf-8")
 
     def test_missing_directory_exits_two(self, tmp_path):
         result = self.run(str(tmp_path / "nope"))

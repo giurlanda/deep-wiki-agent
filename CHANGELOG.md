@@ -5,6 +5,21 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-07-26
+
+### Fixed
+
+- **`okf_lint --fix` no longer destroys the date a malformed timestamp
+  states.** It previously replaced any non-ISO `timestamp` with the current
+  time, silently losing the page's real last-update date. The fixer now first
+  tries the common spellings (`2026/07/19`, `19-07-2026`, `19/07/2026`,
+  `19.07.2026`, `20260719`, `19 July 2026`, `Jul 19, 2026`, with or without a
+  time), normalizing them to ISO 8601 while preserving the value; naive values
+  are read as UTC and date-only values anchored at midnight. `now()` is used
+  only when nothing parses, and that case is now reported explicitly as
+  `timestamp unparseable: ... (original date lost)` instead of being
+  indistinguishable from a faithful normalization. (#9)
+
 ## [0.3.0] - 2026-07-26
 
 ### Added
