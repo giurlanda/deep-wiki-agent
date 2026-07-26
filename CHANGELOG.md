@@ -24,6 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `KeyError: 'raw_dir'`.
 - `deep_wiki_agent.__version__` was left at `0.2.0` by the 0.2.1 release; it
   tracks `pyproject.toml` again.
+- **The prose documentation now draws the same `wiki/` layout as the prompts.**
+  The bundle diagrams in `README.md`, `docs/architecture.md`, `docs/okf.md` and
+  `skills/okf-wiki/SKILL.md` still showed the flat pre-0.2.0 tree, with
+  `index.md`, `log.md` and the category directories at the bundle root, so a
+  reader of the documentation and a reader of the prompts saw two different
+  formats. The diagrams, the frontmatter and log examples written against them,
+  and the surrounding path references now all describe the real layout —
+  including `assets/`, which the docs placed under `raw/` while the manager
+  bootstraps it at `wiki/assets/`. (#6)
 
 ### Added
 
@@ -34,6 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the bundle root, and the paths in the frontmatter and log examples against
   the page each example is written into. The drift this release fixes now fails
   the suite.
+- **A layout guard over the documentation**, in `tests/test_prompt_drift.py`:
+  the bundle diagram is parsed out of each document that draws one and held
+  against `BUNDLE_SKELETON`, so a document that omits part of the layout, or
+  places a page where the skeleton does not, fails the suite. The flat tree the
+  docs carried until now is rejected by both checks. (#6)
 
 ## [0.2.1] - 2026-07-26
 

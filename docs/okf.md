@@ -24,29 +24,32 @@ The layout the agents' prompts prescribe:
 ```
 <bundle>/
 ├── AGENTS.md            local schema: conventions, types, workflow
-├── index.md             navigable catalogue of the root
-├── log.md               append-only chronological history
 ├── raw/                 source documents — IMMUTABLE, never modified
-│   └── assets/          images extracted from the documents
-├── documents/           one page per source document
-├── entities/            people, organizations, products, systems
-├── concepts/            notions, definitions, processes, procedures
-└── syntheses/           cross-cutting analyses, comparisons, evolving theses
+└── wiki/                everything the wiki owns
+    ├── index.md         navigable catalogue of the wiki root
+    ├── log.md           append-only chronological history
+    ├── assets/          images extracted from the documents
+    ├── documents/       one page per source document
+    ├── entities/        people, organizations, products, systems
+    ├── concepts/        notions, definitions, processes, procedures
+    └── syntheses/       cross-cutting analyses, comparisons, evolving theses
 ```
 
 Categories other than these four are legitimate when the domain calls for them
 (`clauses/`, `runbooks/`, `decisions/`). Decide them with the agent at
 bootstrap; they get recorded in `AGENTS.md`.
 
-`raw/` is the one directory that is *not* part of the bundle: it holds the
-sources, excluded from export and validation. The manager agent write-protects
-it by default (`protect_raw=True`).
+`raw/` is the one directory that is *not* part of the wiki: it holds the
+sources, excluded from export and validation. It sits *beside* `wiki/` rather
+than inside it, so a category page reaches its source two hops up
+(`../../raw/...`) and `wiki/log.md` one hop up (`../raw/...`). The manager
+agent write-protects it by default (`protect_raw=True`).
 
 ## Frontmatter
 
 Every concept page is a markdown document with YAML frontmatter. **The only
 field the spec mandates is `type`**; the rest is this bundle's convention.
-Below, a page living in `entities/` — every path in it is relative to that
+Below, a page living in `wiki/entities/` — every path in it is relative to that
 page:
 
 ```yaml
@@ -54,9 +57,9 @@ page:
 type: Document | Entity | Concept | Synthesis | <domain type>
 title: Human-readable title
 description: One sentence — what this page contains.
-resource: ../raw/annual-report-2025.pdf   # path or URL of the primary source
+resource: ../../raw/annual-report-2025.pdf   # path or URL of the primary source
 tags: [finance, 2025]
-timestamp: 2026-07-19T10:30:00Z           # last update, ISO 8601 UTC
+timestamp: 2026-07-19T10:30:00Z              # last update, ISO 8601 UTC
 sources: [../documents/annual-report-2025.md]
 ---
 ```
@@ -77,10 +80,11 @@ simply ignores them.
 Rules the agents enforce on top:
 
 - Links are ordinary markdown links whose path is **relative to the page that
-  contains them**, never absolute: from `index.md` a document page is
+  contains them**, never absolute: from `wiki/index.md` a document page is
   `documents/annual-report-2025.md`, and from
-  `documents/annual-report-2025.md` an entity is
-  `[customers](../entities/acme-spa.md)`. A leading `/` is what the linter
+  `wiki/documents/annual-report-2025.md` an entity is
+  `[customers](../entities/acme-spa.md)` and its source is
+  `../../raw/annual-report-2025.pdf`. A leading `/` is what the linter
   reports as an absolute link — relative paths are what keeps the bundle
   browsable once it is moved, rendered on GitHub or opened in an editor. The
   graph emerges from links, not from the directory hierarchy.
@@ -129,12 +133,13 @@ The main use case. When a document lands in `raw/`:
 6. **Flag contradictions.** A new source that contradicts an existing claim
    does not silently overwrite it: both versions are recorded with source and
    date under `## Open points`, and raised with you.
-7. **Update the `index.md`** of the touched categories and the root.
-8. **Append to `log.md`.**
+7. **Update the `index.md`** of the touched categories and the wiki root's
+   `wiki/index.md`.
+8. **Append to `wiki/log.md`.**
 
 ### Query
 
-1. Read `index.md` (root, then category) to orient. At moderate scale this
+1. Read `wiki/index.md`, then the category indexes, to orient. At moderate scale this
    replaces embedding retrieval.
 2. Read the relevant pages; go back to `raw/` only for a detail the wiki did
    not capture — and if that happens often, the page needs enriching.
@@ -161,16 +166,17 @@ questions you ask most.
 Before creating anything, the agent settles with you: the domain and purpose,
 the categories beyond the defaults, the `type` values in use, the language of
 the pages, and whether ingest is supervised or batch. Those decisions go into
-`AGENTS.md`, and `index.md` and `log.md` are initialized empty but conformant.
+`AGENTS.md`, and `wiki/index.md` and `wiki/log.md` are initialized empty but
+conformant.
 
 ## Log format
 
 A fixed prefix, so the log stays greppable with
-`grep "^## \[" log.md | tail -5`:
+`grep "^## \[" wiki/log.md | tail -5`:
 
 ```markdown
 ## [2026-07-19] ingest | Annual report 2025
-- Source: `raw/annual-report-2025.pdf` (84 pp.)
+- Source: `../raw/annual-report-2025.pdf` (84 pp.)
 - Created: documents/annual-report-2025.md, entities/acme-spa.md
 - Updated: concepts/operating-margin.md, syntheses/trend-2023-2025.md
 - Open: Q3 revenue diverges from the half-year statement

@@ -25,26 +25,27 @@ The user curates the sources and asks the questions. You do everything else: rea
 ```
 <bundle>/
 ├── AGENTS.md            # local schema: conventions, types, workflow (co-evolves with the user)
-├── index.md             # navigable catalogue of the root
-├── log.md               # append-only chronological history
 ├── raw/                 # source documents — IMMUTABLE, never modify
-│   └── assets/          # images extracted from the documents
-├── documents/           # one page per source document
-│   ├── index.md
-│   └── <slug>.md
-├── entities/            # people, organizations, products, systems
-│   ├── index.md
-│   └── <slug>.md
-├── concepts/            # notions, definitions, processes, procedures
-│   ├── index.md
-│   └── <slug>.md
-└── syntheses/           # cross-cutting analyses, comparisons, evolving theses
-    ├── index.md
-    └── <slug>.md
+└── wiki/                # everything the wiki owns
+    ├── index.md         # navigable catalogue of the wiki root
+    ├── log.md           # append-only chronological history
+    ├── assets/          # images extracted from the documents
+    ├── documents/       # one page per source document
+    │   ├── index.md
+    │   └── <slug>.md
+    ├── entities/        # people, organizations, products, systems
+    │   ├── index.md
+    │   └── <slug>.md
+    ├── concepts/        # notions, definitions, processes, procedures
+    │   ├── index.md
+    │   └── <slug>.md
+    └── syntheses/       # cross-cutting analyses, comparisons, evolving theses
+        ├── index.md
+        └── <slug>.md
 ```
 
 The **file path is the identity of the concept**. Do not rename files without updating every inbound link.
-`raw/` is the one directory that does not belong to the wiki: those are the sources, never touch them.
+`raw/` is the one directory that does not belong to the wiki: those are the sources, never touch them. It sits *beside* `wiki/`, not inside it, so a category page reaches a source two hops up (`../../raw/...`) and `wiki/index.md` or `wiki/log.md` one hop up (`../raw/...`).
 
 Categories other than `documents/entities/concepts/syntheses` are legitimate when the domain calls for them (e.g. `clauses/`, `runbooks/`, `decisions/`). Decide them with the user at bootstrap and record them in `AGENTS.md`.
 
@@ -52,14 +53,14 @@ Categories other than `documents/entities/concepts/syntheses` are legitimate whe
 
 Every concept file = one markdown document with YAML frontmatter.
 
-**The only field the spec mandates is `type`.** The rest is this bundle's convention, but it must be respected for consistency. Below, an example for a page living in `entities/` — every path in it is written relative to that page:
+**The only field the spec mandates is `type`.** The rest is this bundle's convention, but it must be respected for consistency. Below, an example for a page living in `wiki/entities/` — every path in it is written relative to that page:
 
 ```yaml
 ---
 type: Document | Entity | Concept | Synthesis | <domain type>
 title: Human-readable title
 description: One sentence, what this page contains.
-resource: ../raw/annual-report-2025.pdf        # path or URL of the primary source
+resource: ../../raw/annual-report-2025.pdf     # path or URL of the primary source
 tags: [finance, 2025]
 timestamp: 2026-07-19T10:30:00Z                # last update, ISO 8601 UTC
 sources: [../documents/annual-report-2025.md]  # document pages it derives from
@@ -67,7 +68,7 @@ sources: [../documents/annual-report-2025.md]  # document pages it derives from
 ```
 
 Rules:
-- Links are **ordinary markdown links**, and their path is always **relative to the page that contains them** — never absolute. From `index.md` a document page is `documents/annual-report-2025.md`; from `documents/annual-report-2025.md` an entity is `[customers](../entities/acme-spa.md)` and its source is `../raw/annual-report-2025.pdf`. A leading `/` is an error: relative paths are what keeps the bundle browsable after it is moved, rendered on GitHub, or opened in an editor. The graph emerges from the links, not from the directory hierarchy.
+- Links are **ordinary markdown links**, and their path is always **relative to the page that contains them** — never absolute. From `wiki/index.md` a document page is `documents/annual-report-2025.md`; from `wiki/documents/annual-report-2025.md` an entity is `[customers](../entities/acme-spa.md)` and its source is `../../raw/annual-report-2025.pdf`. A leading `/` is an error: relative paths are what keeps the bundle browsable after it is moved, rendered on GitHub, or opened in an editor. The graph emerges from the links, not from the directory hierarchy.
 - Frontmatter fields that hold a path — `resource`, `sources` — follow the same rule: relative to the page that declares them. URLs in `resource` are left as they are.
 - `timestamp` is updated on every substantive change to the page.
 - `type` is free-form but **consistent**: list the types in use in `AGENTS.md` and reuse them, do not invent a new one per page.
@@ -88,12 +89,12 @@ When the user adds a document to `raw/`:
 4. **Extract entities and concepts.** For each: if the page exists, update it by integrating the new information; if it does not exist and carries enough weight, create it. An entity named once in passing does not deserve a page — it deserves a linked mention from the document page.
 5. **Update the linked pages.** This is the step that makes the difference against RAG, and also the one you are most tempted to skip. A substantial document typically touches 8-15 pages.
 6. **Flag contradictions.** If the new source contradicts an existing claim, do not silently overwrite. Record both versions with their source and date in an `## Open points` section of the affected page, and bring it to the user's attention.
-7. **Update the `index.md`** of the touched categories and the root.
-8. **Append to `log.md`.**
+7. **Update the `index.md`** of the touched categories and the wiki root's `wiki/index.md`.
+8. **Append to `wiki/log.md`.**
 
 ### Query
 
-1. Read `index.md` (root, then category) to orient yourself. At moderate scale this replaces embedding retrieval.
+1. Read `wiki/index.md`, then the category indexes, to orient yourself. At moderate scale this replaces embedding retrieval.
 2. Read the relevant pages; go back to `raw/` only if you need a detail the wiki did not capture — and if you need it often, that is a signal the page should be enriched.
 3. Answer **with citations to the wiki files** and, through them, to the original document.
 4. If the answer has lasting value (a comparison, an analysis, a non-obvious connection), **propose archiving it** under `syntheses/`. Explorations should accumulate like the sources, not evaporate in the chat.
@@ -121,15 +122,15 @@ On the first run, before creating anything, settle with the user:
 - Language of the pages
 - Supervised or batch ingest
 
-Then create the structure, write `AGENTS.md` with those decisions, and initialize `index.md` and `log.md` empty but conformant.
+Then create the structure, write `AGENTS.md` with those decisions, and initialize `wiki/index.md` and `wiki/log.md` empty but conformant.
 
 ## 5. Log format
 
-Fixed prefix, so the log stays queryable with `grep "^## \[" log.md | tail -5`:
+Fixed prefix, so the log stays queryable with `grep "^## \[" wiki/log.md | tail -5`:
 
 ```markdown
 ## [2026-07-19] ingest | Annual report 2025
-- Source: `raw/annual-report-2025.pdf` (84 pp.)
+- Source: `../raw/annual-report-2025.pdf` (84 pp.)
 - Created: documents/annual-report-2025.md, entities/acme-spa.md
 - Updated: concepts/operating-margin.md, syntheses/trend-2023-2025.md
 - Open: Q3 revenue diverges from the half-year statement

@@ -18,11 +18,19 @@ would be a comment rather than a guarantee. Two checks make it real:
 
 When `SKILL.md` changes: revisit `prompts.py`, then update `SKILL_MD_SHA256`
 below with the value the failure message prints.
+
+The prose documentation draws the same bundle layout, and it drifted the same
+way: README and `docs/architecture.md` kept showing the flat pre-0.2.0 tree
+long after the prompts had moved the pages under `wiki/`. `TestTheDocsDrawTheRealLayout`
+closes that gap by parsing the layout diagram out of each document and holding
+it against `BUNDLE_SKELETON`, the one structure the manager actually
+bootstraps.
 """
 
 from __future__ import annotations
 
 import hashlib
+import posixpath
 import re
 from pathlib import Path
 
@@ -30,14 +38,17 @@ import pytest
 
 from deep_wiki_agent.factory import WIKI_ROOT
 from deep_wiki_agent.prompts import (
+    BUNDLE_SKELETON,
     LINT_TOOL_BLOCK,
     MANAGER_SYSTEM_PROMPT_TEMPLATE,
     READER_SYSTEM_PROMPT_TEMPLATE,
 )
 
-SKILL_MD = Path(__file__).parents[1] / "skills" / "okf-wiki" / "SKILL.md"
+REPO_ROOT = Path(__file__).parents[1]
 
-SKILL_MD_SHA256 = "0e7299c4dc4c15d44188ae9c44906d45b9800d66967593791b5b34be12a1053b"
+SKILL_MD = REPO_ROOT / "skills" / "okf-wiki" / "SKILL.md"
+
+SKILL_MD_SHA256 = "a8fe0262a0b65c7fc0491616e8df45e100a0570ef992a139ddc20fe0e298d22a"
 
 MANAGER_PROMPT = MANAGER_SYSTEM_PROMPT_TEMPLATE.format(
     wiki_root=WIKI_ROOT, raw_dir="/raw", lint_block=LINT_TOOL_BLOCK
@@ -160,3 +171,103 @@ class TestReaderPromptStaysMinimal:
     @pytest.mark.parametrize("phrase", READER_MUST_NOT_CARRY)
     def test_write_side_sections_are_absent(self, phrase):
         assert phrase not in READER_PROMPT
+
+
+# Every document that draws the bundle as an ASCII tree. Each one is a place a
+# reader can form a wrong idea of the layout, so each one is checked.
+DOCS_WITH_A_LAYOUT_DIAGRAM = (
+    "README.md",
+    "docs/architecture.md",
+    "docs/okf.md",
+    "skills/okf-wiki/SKILL.md",
+)
+
+# `├── name` or `└── name`, preceded by one indent unit per level. The unit is
+# four characters wide whether it is drawn (`│   `) or blank.
+TREE_ENTRY_RE = re.compile(r"^(?P<indent>[│ ]*)[├└]── (?P<name>\S+)")
+INDENT_WIDTH = 4
+
+CLOSED_DIRS = frozenset({".", "wiki"})
+"""Directories whose contents the skeleton enumerates in full.
+
+Mirrors `tests/test_prompt_paths`: the bundle root holds `AGENTS.md`, `raw/`
+and `wiki/`, and `wiki/` holds its indexes, its log and its categories. Inside
+a category — or inside `raw/` or `assets/` — a diagram is free to show an
+example page such as `<slug>.md`, which is illustration rather than structure.
+"""
+
+
+def layout_diagram(document: Path) -> str:
+    """Return the fenced block in which ``document`` draws the bundle.
+
+    It is located by content rather than by position: the layout is the one
+    block naming `AGENTS.md`, which no other example in these documents does.
+    """
+    blocks = document.read_text(encoding="utf-8").split("```")[1::2]
+    diagrams = [block for block in blocks if "AGENTS.md" in block]
+
+    assert diagrams, f"{document.name} draws no bundle layout"
+    return diagrams[0]
+
+
+def diagram_paths(diagram: str) -> set[str]:
+    """Return the bundle-relative paths an ASCII tree declares.
+
+    Directories keep their trailing slash — that is what distinguishes
+    `wiki/assets/` from a page called `assets`. The root line carries no
+    connector and is skipped, which is what lets each document label it
+    differently (`<bundle>/`, `/  -> your OKF bundle`).
+    """
+    parents: list[str] = []
+    paths = set()
+    for line in diagram.splitlines():
+        entry = TREE_ENTRY_RE.match(line)
+        if entry is None:
+            continue
+        depth = len(entry["indent"]) // INDENT_WIDTH
+        name = entry["name"]
+        del parents[depth:]
+        paths.add("".join(parents) + name)
+        if name.endswith("/"):
+            parents.append(name)
+    return paths
+
+
+def belongs_in_the_bundle(path: str) -> bool:
+    """Return whether a diagram may show ``path``.
+
+    True for a skeleton entry and for the directories on the way to one, so a
+    diagram may draw `wiki/` even though the skeleton names only what is under
+    it. Anything else is admissible only where the skeleton stops enumerating:
+    `wiki/documents/<slug>.md` is an example page, while `index.md` at the root
+    is a directory the skeleton closes claiming a file it does not hold.
+    """
+    if path in BUNDLE_SKELETON:
+        return True
+    if path.endswith("/") and any(e.startswith(path) for e in BUNDLE_SKELETON):
+        return True
+    return (posixpath.dirname(path.rstrip("/")) or ".") not in CLOSED_DIRS
+
+
+class TestTheDocsDrawTheRealLayout:
+    @pytest.mark.parametrize("document", DOCS_WITH_A_LAYOUT_DIAGRAM)
+    def test_the_whole_skeleton_is_drawn(self, document):
+        """A document that omits part of the layout teaches a partial one."""
+        declared = diagram_paths(layout_diagram(REPO_ROOT / document))
+        missing = sorted(set(BUNDLE_SKELETON) - declared)
+
+        assert not missing, (
+            f"the layout diagram in {document} does not show {missing}; it is "
+            "showing a bundle the manager does not bootstrap"
+        )
+
+    @pytest.mark.parametrize("document", DOCS_WITH_A_LAYOUT_DIAGRAM)
+    def test_nothing_is_drawn_outside_the_skeleton(self, document):
+        """Catches the flat layout: `index.md` at the root is not in the bundle."""
+        declared = diagram_paths(layout_diagram(REPO_ROOT / document))
+        foreign = sorted(path for path in declared if not belongs_in_the_bundle(path))
+
+        assert not foreign, (
+            f"the layout diagram in {document} shows {foreign}, which "
+            "BUNDLE_SKELETON does not place there"
+        )

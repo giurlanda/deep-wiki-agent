@@ -52,7 +52,7 @@ print(result["messages"][-1].content)
 
 On a first run the agent bootstraps: it agrees the domain, the categories, the
 page types and the language with you, writes them into `AGENTS.md`, and
-initializes `index.md` and `log.md`. Then it ingests — reading the source in
+initializes `wiki/index.md` and `wiki/log.md`. Then it ingests — reading the source in
 full, creating the document page with position-level citations, extracting
 entities and concepts, cross-linking them, updating the affected indexes and
 the log, and finally running `okf_lint`.
