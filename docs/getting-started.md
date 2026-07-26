@@ -156,7 +156,11 @@ for error in report["errors"]:
     print(error["file"], error["msg"])
 ```
 
-Pass `fix=True` to normalize malformed timestamps in place. For a bundle held
+Pass `fix=True` to normalize malformed timestamps in place. The date a
+timestamp states is preserved whenever it can be parsed at all (`2026/07/19`,
+`19-07-2026`, `Jul 19, 2026`, …); the current time is used only when nothing
+parses, and the fix is then reported as `timestamp unparseable: ... (original
+date lost)`. For a bundle held
 in a non-local backend (state, store, sandbox), pass it instead of a path:
 `run_okf_lint(backend=my_backend)`.
 
