@@ -73,11 +73,76 @@ Corpo.
 """
 
 
+AGENTS_MD = """\
+# Local schema
+
+Wiki about corporate finance, in Italian.
+
+## Page types
+
+- `Concept` - notions, definitions, procedures
+- `Entity` - people, organizations, products
+- `Document` - one page per source document
+
+## Categories
+
+`concepts/`, `entities/`, `documents/`.
+"""
+
+LOG_WITH_BAD_ENTRIES_MD = """\
+# Log
+
+## [2026-07-19] ingest | Seed
+- Creato: concepts/margine-operativo.md
+
+## 20 luglio: seconda ingest
+- Creato: concepts/altro.md
+
+## [2026-07-21] merge | Fusione di due pagine
+- Aggiornato: concepts/margine-operativo.md
+"""
+
+
+def page(
+    title: str,
+    *,
+    type_: str = "Concept",
+    resource: str | None = None,
+    sources: str | None = None,
+    body: str = "Corpo.",
+) -> str:
+    """Render a conformant page, optionally with path-valued frontmatter."""
+    lines = [
+        "---",
+        f"type: {type_}",
+        f"title: {title}",
+        "description: Una pagina di prova.",
+    ]
+    if resource is not None:
+        lines.append(f"resource: {resource}")
+    if sources is not None:
+        lines.append(f"sources: [{sources}]")
+    lines += ["timestamp: 2026-07-19T10:30:00Z", "---", "", body, ""]
+    return "\n".join(lines)
+
+
 def write_absolute_link_pair(wiki_path) -> None:
     """Add a page whose only link is absolute, plus the page it points to."""
     concepts = wiki_path / "concepts"
     concepts.joinpath("assoluta.md").write_text(ABSOLUTE_LINK_PAGE, encoding="utf-8")
     concepts.joinpath("isolata.md").write_text(ISOLATED_PAGE, encoding="utf-8")
+
+
+def write_page(wiki_path, rel: str, content: str) -> None:
+    """Write a page at a bundle-relative path, creating its directory."""
+    target = wiki_path / rel
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content, encoding="utf-8")
+
+
+def messages(result, key: str) -> list[str]:
+    """Return just the messages of one section of a lint result."""
+    return [item["msg"] for item in result[key]]
 
 
 class TestRunOkfLint:
@@ -180,6 +245,349 @@ class TestRunOkfLint:
     def test_missing_directory_raises(self, tmp_path):
         with pytest.raises(NotADirectoryError):
             run_okf_lint(tmp_path / "nope")
+
+
+class TestFrontmatterPaths:
+    """`resource` and `sources` obey the same path rules as body links.
+
+    That is where the page -> source traceability lives, so a broken or
+    absolute path there is as much a defect as a broken link in the body.
+    """
+
+    def test_detects_broken_resource(self, wiki_path):
+        write_page(
+            wiki_path,
+            "concepts/fonte-rotta.md",
+            page("Fonte rotta", resource="../raw/inesistente.pdf"),
+        )
+
+        assert any(
+            "broken path in `resource`" in m
+            for m in messages(run_okf_lint(wiki_path), "errors")
+        )
+
+    def test_accepts_an_existing_relative_resource(self, wiki_path):
+        write_page(
+            wiki_path,
+            "concepts/fonte-buona.md",
+            page("Fonte buona", resource="../raw/source.txt"),
+        )
+
+        assert not any(
+            "`resource`" in m for m in messages(run_okf_lint(wiki_path), "errors")
+        )
+
+    def test_detects_absolute_resource(self, wiki_path):
+        write_page(
+            wiki_path,
+            "concepts/fonte-assoluta.md",
+            page("Fonte assoluta", resource="/raw/source.txt"),
+        )
+
+        assert any(
+            "absolute path in `resource`" in m
+            for m in messages(run_okf_lint(wiki_path), "errors")
+        )
+
+    def test_absolute_resource_is_not_also_reported_as_broken(self, wiki_path):
+        write_page(
+            wiki_path,
+            "concepts/fonte-assoluta.md",
+            page("Fonte assoluta", resource="/raw/source.txt"),
+        )
+
+        assert not any(
+            "broken path" in m for m in messages(run_okf_lint(wiki_path), "errors")
+        )
+
+    def test_detects_broken_sources_entry(self, wiki_path):
+        write_page(
+            wiki_path,
+            "concepts/derivata.md",
+            page("Derivata", sources="../documents/mai-scritto.md"),
+        )
+
+        assert any(
+            "broken path in `sources`" in m
+            for m in messages(run_okf_lint(wiki_path), "errors")
+        )
+
+    @pytest.mark.parametrize(
+        "resource",
+        ["https://example.com/report.pdf", "Intervista interna, marzo 2026"],
+    )
+    def test_urls_and_prose_are_left_alone(self, wiki_path, resource):
+        """`resource` is documented as a path *or* a URL, and used for notes."""
+        write_page(
+            wiki_path, "concepts/non-un-path.md", page("Non un path", resource=resource)
+        )
+
+        assert not any(
+            "`resource`" in m for m in messages(run_okf_lint(wiki_path), "errors")
+        )
+
+    def test_a_page_cited_in_sources_is_not_an_orphan(self, wiki_path):
+        """Frontmatter traceability is a real inbound reference."""
+        write_page(wiki_path, "documents/relazione.md", page("Relazione", type_="Doc"))
+        write_page(
+            wiki_path,
+            "concepts/derivata.md",
+            page("Derivata", sources="../documents/relazione.md"),
+        )
+
+        orphans = [
+            w["file"]
+            for w in run_okf_lint(wiki_path)["warnings"]
+            if "orphan" in w["msg"]
+        ]
+
+        assert "documents/relazione.md" not in orphans
+
+
+class TestAgentsFile:
+    """`AGENTS.md` is structural, like `index.md` and `log.md`."""
+
+    def test_needs_no_frontmatter(self, wiki_path):
+        (wiki_path / "AGENTS.md").write_text(AGENTS_MD, encoding="utf-8")
+
+        files = [e["file"] for e in run_okf_lint(wiki_path)["errors"]]
+
+        assert "AGENTS.md" not in files
+
+    def test_is_not_an_orphan(self, wiki_path):
+        (wiki_path / "AGENTS.md").write_text(AGENTS_MD, encoding="utf-8")
+
+        orphans = [
+            w["file"]
+            for w in run_okf_lint(wiki_path)["warnings"]
+            if "orphan" in w["msg"]
+        ]
+
+        assert "AGENTS.md" not in orphans
+
+
+class TestDeclaredTypes:
+    """A declared vocabulary replaces the sprawl heuristic with an exact check."""
+
+    def test_declared_type_passes(self, wiki_path):
+        (wiki_path / "AGENTS.md").write_text(AGENTS_MD, encoding="utf-8")
+        write_page(wiki_path, "concepts/dichiarato.md", page("Dichiarato"))
+
+        assert not any(
+            "not declared" in m for m in messages(run_okf_lint(wiki_path), "warnings")
+        )
+
+    def test_undeclared_type_is_flagged(self, wiki_path):
+        (wiki_path / "AGENTS.md").write_text(AGENTS_MD, encoding="utf-8")
+        write_page(
+            wiki_path, "concepts/inventato.md", page("Inventato", type_="Clausola")
+        )
+
+        assert any(
+            "type not declared in AGENTS.md: `Clausola`" in m
+            for m in messages(run_okf_lint(wiki_path), "warnings")
+        )
+
+    def test_case_mismatch_points_at_the_declared_spelling(self, wiki_path):
+        (wiki_path / "AGENTS.md").write_text(AGENTS_MD, encoding="utf-8")
+        write_page(
+            wiki_path, "concepts/minuscolo.md", page("Minuscolo", type_="entity")
+        )
+
+        found = [
+            m for m in messages(run_okf_lint(wiki_path), "warnings") if "`entity`" in m
+        ]
+
+        assert found
+        assert "declared in AGENTS.md as `Entity`" in found[0]
+
+    def test_plain_list_without_backticks_is_still_read(self, wiki_path):
+        (wiki_path / "AGENTS.md").write_text(
+            "# Schema\n\n## Types\n\n- Concept - notions\n- Entity - people\n",
+            encoding="utf-8",
+        )
+        write_page(wiki_path, "concepts/inventato.md", page("Inventato", type_="Altro"))
+
+        warnings = messages(run_okf_lint(wiki_path), "warnings")
+
+        assert any("`Altro`" in m for m in warnings)
+        assert not any("`Concept`" in m for m in warnings)
+
+    def test_without_a_type_section_the_heuristic_stays_in_charge(self, wiki_path):
+        """No declared vocabulary must not mean "every type is undeclared"."""
+        (wiki_path / "AGENTS.md").write_text("# Schema\n\nNiente elenchi.\n", "utf-8")
+        write_page(wiki_path, "concepts/inventato.md", page("Inventato", type_="Altro"))
+
+        assert not any(
+            "not declared" in m for m in messages(run_okf_lint(wiki_path), "warnings")
+        )
+
+
+class TestLogFormat:
+    """The `## [YYYY-MM-DD] type | title` prefix is what keeps the log greppable."""
+
+    def test_conformant_log_passes(self, wiki_path):
+        assert not any(
+            "log entry" in m for m in messages(run_okf_lint(wiki_path), "warnings")
+        )
+
+    def test_detects_a_malformed_entry(self, wiki_path):
+        (wiki_path / "log.md").write_text(LOG_WITH_BAD_ENTRIES_MD, encoding="utf-8")
+
+        assert any(
+            "log entry does not match" in m and "20 luglio" in m
+            for m in messages(run_okf_lint(wiki_path), "warnings")
+        )
+
+    def test_detects_an_unknown_entry_type(self, wiki_path):
+        (wiki_path / "log.md").write_text(LOG_WITH_BAD_ENTRIES_MD, encoding="utf-8")
+
+        assert any(
+            "unknown log entry type `merge`" in m
+            for m in messages(run_okf_lint(wiki_path), "warnings")
+        )
+
+    def test_log_findings_are_warnings_not_errors(self, wiki_path):
+        (wiki_path / "log.md").write_text(LOG_WITH_BAD_ENTRIES_MD, encoding="utf-8")
+
+        assert not any(
+            "log entry" in m for m in messages(run_okf_lint(wiki_path), "errors")
+        )
+
+
+class TestFixAbsolutePaths:
+    """Making an absolute path relative is mechanical: the page's location is known."""
+
+    def test_fix_rewrites_an_absolute_link(self, wiki_path):
+        write_absolute_link_pair(wiki_path)
+
+        result = run_okf_lint(wiki_path, fix=True)
+
+        assert any(
+            "absolute link made relative" in m for m in messages(result, "fixes")
+        )
+        assert "[isolata](isolata.md)" in (
+            wiki_path / "concepts" / "assoluta.md"
+        ).read_text(encoding="utf-8")
+
+    def test_fixed_link_is_no_longer_an_error(self, wiki_path):
+        write_absolute_link_pair(wiki_path)
+
+        result = run_okf_lint(wiki_path, fix=True)
+
+        assert not any("absolute link" in m for m in messages(result, "errors"))
+        assert not any(
+            "absolute link" in m for m in messages(run_okf_lint(wiki_path), "errors")
+        )
+
+    def test_fix_computes_the_hops_across_directories(self, wiki_path):
+        write_page(
+            wiki_path,
+            "entities/acme.md",
+            page("Acme", type_="Entity", body="Vedi [indice](/index.md)."),
+        )
+
+        run_okf_lint(wiki_path, fix=True)
+
+        assert "[indice](../index.md)" in (
+            wiki_path / "entities" / "acme.md"
+        ).read_text(encoding="utf-8")
+
+    def test_a_broken_absolute_link_is_left_alone(self, wiki_path):
+        """Rewriting it would only move a broken link; where it meant to point
+        is a guess."""
+        write_page(
+            wiki_path,
+            "concepts/rotta-assoluta.md",
+            page("Rotta assoluta", body="Vedi [nulla](/concepts/nulla.md)."),
+        )
+
+        result = run_okf_lint(wiki_path, fix=True)
+
+        assert any("absolute link" in m for m in messages(result, "errors"))
+        assert "(/concepts/nulla.md)" in (
+            wiki_path / "concepts" / "rotta-assoluta.md"
+        ).read_text(encoding="utf-8")
+
+    def test_fix_rewrites_an_absolute_frontmatter_path(self, wiki_path):
+        write_page(
+            wiki_path,
+            "concepts/fonte-assoluta.md",
+            page("Fonte assoluta", resource="/raw/source.txt"),
+        )
+
+        result = run_okf_lint(wiki_path, fix=True)
+
+        assert any(
+            "absolute path in `resource` made relative" in m
+            for m in messages(result, "fixes")
+        )
+        assert "resource: ../raw/source.txt" in (
+            wiki_path / "concepts" / "fonte-assoluta.md"
+        ).read_text(encoding="utf-8")
+
+
+class TestDuplicates:
+    """The file path is the identity of a concept: two paths, two identities."""
+
+    def test_detects_a_duplicate_slug_across_categories(self, wiki_path):
+        write_page(wiki_path, "entities/acme.md", page("Acme SpA", type_="Entity"))
+        write_page(wiki_path, "concepts/acme.md", page("Acme, il concetto"))
+
+        assert any(
+            "duplicate slug `acme.md`" in m
+            for m in messages(run_okf_lint(wiki_path), "warnings")
+        )
+
+    def test_reserved_names_are_not_duplicates(self, wiki_path):
+        """Every category has its own `index.md`; that is the convention."""
+        write_page(wiki_path, "entities/index.md", "# Entities\n")
+        write_page(wiki_path, "entities/acme.md", page("Acme", type_="Entity"))
+
+        assert not any(
+            "duplicate slug" in m for m in messages(run_okf_lint(wiki_path), "warnings")
+        )
+
+    def test_detects_a_duplicate_title(self, wiki_path):
+        write_page(wiki_path, "concepts/margine.md", page("Margine operativo"))
+
+        found = [
+            w
+            for w in run_okf_lint(wiki_path)["warnings"]
+            if "duplicate title" in w["msg"]
+        ]
+
+        assert found
+        assert found[0]["file"] == "concepts/margine-operativo.md"
+        assert "concepts/margine.md" in found[0]["msg"]
+
+    def test_duplicate_titles_are_matched_case_insensitively(self, wiki_path):
+        write_page(wiki_path, "concepts/margine.md", page("MARGINE OPERATIVO"))
+
+        assert any(
+            "duplicate title" in m
+            for m in messages(run_okf_lint(wiki_path), "warnings")
+        )
+
+
+class TestConsoleScript:
+    """`okf-lint` is the documented entry point; `python -m` still works too."""
+
+    def test_entry_point_is_declared(self):
+        import tomllib
+        from pathlib import Path as _Path
+
+        pyproject = _Path(__file__).resolve().parents[1] / "pyproject.toml"
+        scripts = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"][
+            "scripts"
+        ]
+
+        assert scripts["okf-lint"] == "deep_wiki_agent.okf_lint:main"
+
+    def test_entry_point_target_is_callable(self):
+        from deep_wiki_agent.okf_lint import main
+
+        assert callable(main)
 
 
 class TestCoerceTimestamp:

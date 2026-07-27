@@ -105,6 +105,14 @@ Both are optional per the spec. This library treats them as mandatory:
 without an index the wiki is not navigable by an agent, and without a log the
 story of how it grew is lost.
 
+`AGENTS.md` is structural for the same reason, and the linter treats it as
+such: it carries the bundle's local schema, not a concept, so it needs no OKF
+frontmatter and nothing is expected to link to it. It is also where the linter
+reads the `type` vocabulary from — the section whose heading mentions "types",
+taking the backticked names in it (or the lead token of each list item or
+table row when they are written plainly). Declare them there and every
+undeclared `type`, down to a difference in capitalization, becomes a finding.
+
 ## The workflows
 
 Four operations define the wiki's lifecycle. They live in the agents' system
@@ -155,11 +163,20 @@ never mutates the knowledge base.
 
 ### Lint
 
-The mechanical checks (`okf_lint`) plus the judgment a script cannot give:
-contradictions not yet flagged, claims superseded by newer sources, orphan
-pages, broken and absolute links, concepts repeatedly cited without a page,
-missing or inconsistent frontmatter, and the informational gaps that block the
-questions you ask most.
+The mechanical checks (`okf_lint`) plus the judgment a script cannot give.
+
+The script covers: missing frontmatter and required fields, non-ISO
+timestamps, broken and absolute links — in the body and in the `resource` and
+`sources` frontmatter fields alike — orphan pages, stale or missing
+`index.md`, `type` values not declared in `AGENTS.md`, the `log.md` entry
+format, and the same concept created twice under two paths (duplicate slug or
+title). `--fix` repairs the mechanical subset: timestamps keep the date they
+state, and absolute paths whose target exists are rewritten relative to their
+page.
+
+The agent adds what the script cannot: contradictions not yet flagged, claims
+superseded by newer sources, concepts repeatedly cited without a page of their
+own, and the informational gaps that block the questions you ask most.
 
 ### Bootstrap
 

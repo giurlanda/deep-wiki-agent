@@ -97,9 +97,10 @@ def run_okf_lint(
             filesystem) holding the bundle, validated in place through its
             ``glob``/``read``/``edit`` methods. Mutually exclusive with
             ``wiki_path``.
-        fix: When ``True``, malformed timestamps are normalized in place,
-            preserving the date they state whenever it is parseable.
-            ``False`` reports only.
+        fix: When ``True``, malformed timestamps are normalized in place
+            (preserving the date they state whenever it is parseable) and
+            absolute links and frontmatter paths whose target exists are
+            rewritten relative to their page. ``False`` reports only.
 
     Returns:
         A dict with ``errors``, ``warnings`` and ``fixes`` lists, each item a
@@ -193,15 +194,19 @@ def create_okf_lint_tool(
         """Validate the wiki bundle for OKF v0.1 conformance.
 
         Checks YAML frontmatter, the mandatory `type` field, recommended
-        fields, ISO 8601 timestamps, broken internal links, orphan pages
-        (no inbound links), stale or missing `index.md` files, and misuse of
-        the reserved names. Run this before declaring any write operation
-        complete.
+        fields, ISO 8601 timestamps, broken and absolute links in the body and
+        in the `resource`/`sources` frontmatter fields, orphan pages (no
+        inbound links), stale or missing `index.md` files, `type` values not
+        declared in `AGENTS.md`, the `log.md` entry format, duplicate slugs and
+        titles, and misuse of the reserved names. Run this before declaring any
+        write operation complete.
 
         Args:
-            fix: When true, normalize malformed timestamps in place, keeping
-                the date they state when it is parseable. When false
-                (default), report findings without modifying anything.
+            fix: When true, repair in place what is mechanical: malformed
+                timestamps keep the date they state when it is parseable, and
+                absolute links and frontmatter paths whose target exists are
+                rewritten relative to their page. When false (default), report
+                findings without modifying anything.
 
         Returns:
             A report listing FIX / ERROR / WARN lines and a summary count.

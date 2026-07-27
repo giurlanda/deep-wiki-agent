@@ -26,6 +26,11 @@ dependencies = [
     "langchain>=1.0,<2.0",
 ]
 
+[project.scripts]
+# The validator is stdlib-only by design: a bundle stays verifiable by anyone
+# holding the directory, and `uvx`/`pipx` make that a one-liner.
+okf-lint = "deep_wiki_agent.okf_lint:main"
+
 [project.urls]
 Homepage = "https://github.com/giurlanda/deep-wiki-agent"
 Repository = "https://github.com/giurlanda/deep-wiki-agent"

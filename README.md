@@ -187,7 +187,9 @@ The `okf_lint` tool is attached regardless of backend: it walks the bundle throu
 
 ## Linting
 
-`okf_lint` validates the bundle against OKF v0.1 — frontmatter present, the mandatory `type` field, ISO 8601 timestamps, broken internal links, links written as absolute paths instead of relative to their page, orphan pages, stale or missing `index.md`, misused reserved names.
+`okf_lint` validates the bundle against OKF v0.1 — frontmatter present, the mandatory `type` field, ISO 8601 timestamps, broken internal links, links written as absolute paths instead of relative to their page, the same two defects in the path-valued frontmatter fields `resource` and `sources`, orphan pages, stale or missing `index.md`, `type` values not declared in `AGENTS.md`, the `log.md` entry format, the same concept created twice under different paths, misused reserved names.
+
+`--fix` repairs what is mechanical and leaves the rest reported: malformed timestamps (keeping the date they state) and absolute links or frontmatter paths whose target exists, rewritten relative to their page. An absolute link whose target does not exist is left alone — rewriting it would only move a broken link around.
 
 The manager agent runs it as a tool. You can run the same check yourself:
 
@@ -201,7 +203,11 @@ print(report["errors"], report["warnings"])
 or from the shell — the validator is stdlib-only and exits `1` on errors, so it drops straight into CI:
 
 ```bash
-python -m deep_wiki_agent.okf_lint ./my-wiki [--fix] [--json]
+okf-lint ./my-wiki [--fix] [--json]
+
+# without the package installed on the PATH
+uvx --from deep-wiki-agent okf-lint ./my-wiki
+python -m deep_wiki_agent.okf_lint ./my-wiki
 ```
 
 For a bundle held in a non-local backend, pass it instead of a path:
