@@ -44,6 +44,8 @@ uv add deep-wiki-agent
 
 Python 3.12+. You also need a provider package for the model you pass, e.g. `pip install langchain-anthropic`.
 
+To ingest PDFs and other binary formats, add the optional `documents` extra — `pip install "deep-wiki-agent[documents]"` — which enables [the ready-made `read_document` tool](#ingesting-pdfs-docx-web-pages). The core install stays free of loader dependencies.
+
 ## The knowledge lives in the system prompt
 
 The substantive rules — bundle layout, frontmatter conformance, the ingest workflow, the query protocol, the lint checklist, bootstrap, the log format — are in the agents' system prompts. They are in force from the first turn: nothing to load, no round trip spent reading a file, and no way for the model to skip them.
@@ -176,22 +178,43 @@ The flag is mutually exclusive with `create_deep_agent`'s `response_format` pass
 
 ### Ingesting PDFs, docx, web pages
 
-The library ships no document loaders on purpose: which formats your wiki ingests is domain-specific, and loaders drag in heavy dependencies. Pass your own as tools:
+No loader is installed by default — which formats your wiki ingests is domain-specific, and loaders drag in heavy dependencies. The well-trodden path ships as an opt-in extra:
+
+```bash
+pip install "deep-wiki-agent[documents]"
+# or
+uv add "deep-wiki-agent[documents]"
+```
+
+That pulls in [markitdown](https://github.com/microsoft/markitdown) and enables `create_read_document_tool`, a ready-made `read_document` tool covering PDF, docx, pptx, xlsx, html, epub and the rest of markitdown's format list:
 
 ```python
-from langchain_core.tools import tool
-
-@tool
-def read_pdf(path: str) -> str:
-    """Extract the text of a PDF stored under /raw."""
-    ...
+from deep_wiki_agent import create_read_document_tool, create_wiki_manager_agent
 
 manager = create_wiki_manager_agent(
     model="anthropic:claude-sonnet-5",
     wiki_path="./my-wiki",
-    tools=[read_pdf],
+    tools=[create_read_document_tool("./my-wiki")],
 )
 ```
+
+The agent then calls `read_document("paper.pdf")` and gets markdown back. Two things are not up to the model: reads are confined to `/raw`, so the tool cannot be aimed at the wiki's own pages or anywhere outside the bundle, and the result is truncated past `max_chars` (200 000 by default) with a note saying so, so one oversized source cannot swallow the context window.
+
+Bytes are pulled through the backend's `download_files`, not off the local filesystem, so the tool reads the same tree the agent's file tools do — including a bundle held in a state, store, or sandbox backend:
+
+```python
+tool = create_read_document_tool(backend=my_backend)
+```
+
+To convert a source yourself, outside an agent, `read_document` is the same code path without the truncation:
+
+```python
+from deep_wiki_agent import read_document
+
+markdown = read_document("paper.pdf", wiki_path="./my-wiki")
+```
+
+Writing your own loader instead remains supported — anything you pass in `tools=` is handed straight to the agent.
 
 ### Human approval before writes
 
@@ -283,6 +306,7 @@ To add genuine skills alongside the agent, `create_deep_agent`'s own `skills=` p
 - `create_deep_wiki_agent(*, model, wiki_path=None, backend=None, not_found_message=..., structured_output=False, ...)` — read-only agent that answers only from the bundle.
 - `WikiAnswer` — the reader's optional structured response: `answer`, `citations`, `not_covered`, `found`.
 - `create_okf_lint_tool(wiki_path=None, *, backend=None)` / `run_okf_lint(wiki_path=None, *, backend=None, fix=False)` — OKF conformance validation, against a local directory or any deepagents backend.
+- `create_read_document_tool(wiki_path=None, *, backend=None, root="/raw", max_chars=200_000)` / `read_document(path, *, wiki_path=None, backend=None, root="/raw")` — source-document loading via markitdown, confined to `/raw`. Requires the `documents` extra.
 - `read_only_permissions()` / `write_protect_permissions(paths)` — the permission sets, reusable in your own agents.
 - `MANAGER_SYSTEM_PROMPT_TEMPLATE` / `READER_SYSTEM_PROMPT_TEMPLATE` — the instructions each agent follows, as `str.format` templates.
 - `BUNDLE_SKELETON` — the bundle layout the manager bootstraps, as bundle-relative paths.

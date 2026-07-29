@@ -54,6 +54,13 @@ examples = [
     "colorama"
 ]
 
+# Opt-in loader stack for `create_read_document_tool`. Enumerated rather than
+# `markitdown[all]`, which additionally pulls the Azure SDKs and the audio
+# transcription chain — neither is reachable from a bundle's `raw/` directory.
+documents = [
+    "markitdown[docx,outlook,pdf,pptx,xls,xlsx]>=0.1,<0.2",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8.3",

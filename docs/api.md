@@ -39,6 +39,18 @@ section, since that section describes `WikiAnswer`'s fields specifically.
 
 ::: deep_wiki_agent.okf_lint.lint
 
+## Source documents
+
+Both require the optional `documents` extra
+(`pip install "deep-wiki-agent[documents]"`), which pulls in
+[markitdown](https://github.com/microsoft/markitdown). Without it, the module
+still imports — the dependency is loaded inside the converter — and a
+conversion attempt raises `ImportError` with the install command.
+
+::: deep_wiki_agent.tools.documents.create_read_document_tool
+
+::: deep_wiki_agent.tools.documents.read_document
+
 ## Constants
 
 | Name | Value | Meaning |

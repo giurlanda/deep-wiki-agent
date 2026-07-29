@@ -187,6 +187,38 @@ Because the abstraction covers every backend, the factory attaches the tool
 unconditionally whenever `enable_lint_tool=True` — there is no longer a
 backend type the linter cannot reach.
 
+## The document tool, and why it is optional
+
+Not shipping loaders is the right default — which formats a wiki ingests is
+domain-specific, and a mandatory PDF stack is dead weight for a bundle built
+from plain text. But nearly every bundle's `raw/` directory holds PDFs, and
+every user was writing the same adapter. `tools/documents.py` is that adapter,
+behind the `documents` extra, so the cost is paid only by those who opt in.
+
+The extra installs [markitdown](https://github.com/microsoft/markitdown), which
+covers PDF, docx, pptx, xlsx, html and epub through one interface — hence
+`read_document` rather than `read_pdf`. `markitdown` is imported *inside* the
+converter, not at module scope, so importing `deep_wiki_agent` stays free for
+everyone else and a missing extra surfaces as an `ImportError` carrying the
+install command rather than as a crash at import time.
+
+Three design details, two of them borrowed from the lint tool:
+
+- **Bytes come through the backend**, via `download_files` rather than `read`.
+  `read` returns decoded text, which a PDF does not survive; `download_files`
+  returns raw bytes on every backend, so the tool reads the same tree the
+  agent's file tools do — including a state, store, or sandbox-backed bundle —
+  instead of reaching around it to the local filesystem.
+- **The bundle is captured in the closure and reads are confined to `/raw`.**
+  The model chooses which source to open and nothing else; path resolution is
+  lexical (`..` is collapsed, then the result is checked against the root), so
+  traversal cannot walk out of the source directory or into the wiki's pages.
+- **Output is capped** at `max_chars`, with the truncation announced in the
+  returned text so the model knows it is reading a prefix.
+
+The tool is not attached by any factory: it is passed in `tools=`, like any
+other loader, since its dependency is not part of a default install.
+
 ## Module map
 
 | Module | Responsibility |
@@ -196,4 +228,5 @@ backend type the linter cannot reach.
 | `prompts.py` | the two system prompt templates and the not-found default |
 | `okf_lint.py` | the OKF conformance validator (backend-agnostic), plus its shell entry point |
 | `tools/lint.py` | the `okf_lint` tool and its deepagents backend adapter |
+| `tools/documents.py` | the optional `read_document` tool: markitdown conversion over backend bytes |
 | `skills/okf-wiki/` | the skill, at the repo root: not shipped, not mounted |

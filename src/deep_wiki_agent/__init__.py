@@ -35,9 +35,14 @@ from deep_wiki_agent.prompts import (
     READER_SYSTEM_PROMPT_TEMPLATE,
 )
 from deep_wiki_agent.schemas import WikiAnswer
-from deep_wiki_agent.tools import create_okf_lint_tool, run_okf_lint
+from deep_wiki_agent.tools import (
+    create_okf_lint_tool,
+    create_read_document_tool,
+    read_document,
+    run_okf_lint,
+)
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 __all__ = [
     "BUNDLE_SKELETON",
@@ -50,7 +55,9 @@ __all__ = [
     "__version__",
     "create_deep_wiki_agent",
     "create_okf_lint_tool",
+    "create_read_document_tool",
     "create_wiki_manager_agent",
+    "read_document",
     "read_only_permissions",
     "run_okf_lint",
     "write_protect_permissions",
