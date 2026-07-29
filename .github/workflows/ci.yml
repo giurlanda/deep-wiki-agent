@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --all-extras
+      - name: Ruff check
+        run: uv run ruff check --output-format=github .
+      - name: Ruff format
+        run: uv run ruff format --check .
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+      - run: uv sync --all-extras
+      - run: uv run pytest
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv build
+      - name: Verify the skill stays out of the wheel
+        run: |
+          set -euo pipefail
+          wheel=$(ls dist/*.whl)
+          contents=$(python -m zipfile -l "$wheel")
+          # The skill is a repo-root artifact for humans and skill-aware
+          # harnesses: no agent mounts it, so shipping it would be dead weight
+          # in every install.
+          if grep -q 'deep_wiki_agent/skills/' <<<"$contents"; then
+            echo "::error::the okf-wiki skill leaked into the wheel" >&2
+            exit 1
+          fi
+          # The validator, by contrast, must ship: it backs the okf_lint tool
+          # and the `python -m deep_wiki_agent.okf_lint` entry point.
+          grep -q 'deep_wiki_agent/okf_lint.py' <<<"$contents"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --all-extras
+      - run: uv run mkdocs build --strict
