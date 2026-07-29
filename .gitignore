@@ -19,3 +19,5 @@ site/
 
 # Local wikis produced by the examples
 examples/*-wiki/
+examples/raw/
+.vscode/launche.json

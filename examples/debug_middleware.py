@@ -15,15 +15,18 @@ Uso:
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from langchain.agents.middleware import AgentMiddleware, ToolCallRequest
-from langchain.agents.middleware.types import AgentState
 from langchain_core.messages import ToolMessage
-from langgraph.runtime import Runtime
-from langgraph.types import Command
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from langchain.agents.middleware.types import AgentState
+    from langgraph.runtime import Runtime
+    from langgraph.types import Command
 
 _ANSI_RESET = "\033[0m"
 
@@ -52,7 +55,7 @@ class DebugMiddleware(AgentMiddleware):
         return f"{color.value if color else self._color.value}{text}{_ANSI_RESET}"
 
     def before_agent(
-        self, state: AgentState[Any], runtime: Runtime[None]
+        self, state: AgentState[Any], _runtime: Runtime[None]
     ) -> dict[str, Any] | None:
         last = state["messages"][-1]
         print(
@@ -63,7 +66,7 @@ class DebugMiddleware(AgentMiddleware):
         )
 
     def after_agent(
-        self, state: AgentState[Any], runtime: Runtime[None]
+        self, state: AgentState[Any], _runtime: Runtime[None]
     ) -> dict[str, Any] | None:
         last = state["messages"][-1]
         print(
@@ -73,7 +76,7 @@ class DebugMiddleware(AgentMiddleware):
             )
         )
 
-    def after_model(self, state: dict[str, Any], runtime: Runtime) -> None:
+    def after_model(self, state: dict[str, Any], _runtime: Runtime) -> None:
         last = state["messages"][-1]
         print(
             self._colorize(
@@ -83,7 +86,8 @@ class DebugMiddleware(AgentMiddleware):
         for call in getattr(last, "tool_calls", None) or []:
             print(
                 self._colorize(
-                    f" ===\n[debug][model] tool_call richiesta -> {call['name']}({call['args']})"
+                    " ===\n[debug][model] tool_call richiesta -> "
+                    f"{call['name']}({call['args']})"
                 )
             )
 
