@@ -15,6 +15,10 @@ pip install langchain-anthropic
 export ANTHROPIC_API_KEY=...
 ```
 
+To ingest PDFs and other binary formats, add the optional `documents` extra —
+see [Ingest PDFs, docx, web pages](#ingest-pdfs-docx-web-pages). The core
+install stays free of loader dependencies.
+
 ## Build a wiki
 
 Put your source documents in `raw/` first. They are write-protected: the agent
@@ -149,31 +153,63 @@ partial hit, and `citations` holds bundle paths such as
 
 ## Ingest PDFs, docx, web pages
 
-The library ships no document loaders: which formats your wiki ingests is
-domain-specific, and loaders drag in heavy dependencies. Pass your own.
+No loader is installed by default: which formats your wiki ingests is
+domain-specific, and loaders drag in heavy dependencies. The common case ships
+as an opt-in extra.
+
+```bash
+pip install "deep-wiki-agent[documents]"
+# or
+uv add "deep-wiki-agent[documents]"
+```
+
+That pulls in [markitdown](https://github.com/microsoft/markitdown) and enables
+`create_read_document_tool` — a ready-made `read_document` tool covering PDF,
+docx, pptx, xlsx, html, epub and the rest of markitdown's format list.
 
 ```python
-from langchain_core.tools import tool
-from pypdf import PdfReader
-
-
-@tool
-def read_pdf(path: str) -> str:
-    """Extract the text of a PDF stored under /raw.
-
-    Args:
-        path: Path of the PDF relative to the bundle root.
-    """
-    reader = PdfReader(f"./my-wiki/{path.lstrip('/')}")
-    return "\n\n".join(page.extract_text() or "" for page in reader.pages)
-
+from deep_wiki_agent import create_read_document_tool, create_wiki_manager_agent
 
 manager = create_wiki_manager_agent(
     model="anthropic:claude-sonnet-5",
     wiki_path="./my-wiki",
-    tools=[read_pdf],
+    tools=[create_read_document_tool("./my-wiki")],
 )
 ```
+
+The agent calls `read_document("paper.pdf")` and gets markdown back. It picks
+the document; it does not pick anything else:
+
+- **Reads are confined to `/raw`.** `paper.pdf`, `raw/paper.pdf` and
+  `/raw/paper.pdf` all name the same file, while anything resolving outside —
+  including via `../` — comes back as an error. The tool cannot be aimed at the
+  wiki's own pages, which the agent reads with its ordinary file tools anyway.
+- **Output is capped** at `max_chars` (200 000 by default), with a note
+  appended when it truncates, so one oversized source cannot swallow the
+  context window.
+
+Bytes are pulled through the backend's `download_files` rather than off the
+local filesystem, so a bundle held in a state, store, or sandbox backend works
+the same way:
+
+```python
+tool = create_read_document_tool(backend=my_backend)
+```
+
+To convert a source outside an agent, `read_document` is the same code path
+without the truncation:
+
+```python
+from deep_wiki_agent import read_document
+
+markdown = read_document("paper.pdf", wiki_path="./my-wiki")
+```
+
+!!! note
+    Writing your own loader is still supported and sometimes the right call —
+    a domain-specific parser, an OCR pass, a URL fetcher. Anything you pass in
+    `tools=` is handed straight to the agent, alongside or instead of
+    `read_document`.
 
 ## Require approval before writes
 

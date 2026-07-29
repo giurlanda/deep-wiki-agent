@@ -5,6 +5,39 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-07-29
+
+### Added
+
+- **A ready-made source-document tool, behind the optional `documents` extra.**
+  `create_read_document_tool(wiki_path)` returns a `read_document` tool you pass
+  in `tools=`; `pip install "deep-wiki-agent[documents]"` installs the
+  [markitdown](https://github.com/microsoft/markitdown) stack it needs. Shipping
+  no loaders was the right default, but nearly every bundle's `raw/` directory
+  holds PDFs and every user was writing the same adapter. markitdown covers PDF,
+  docx, pptx, xlsx, html and epub through one interface, hence `read_document`
+  rather than a PDF-only tool. (#11)
+- **`read_document(path, *, wiki_path=None, backend=None, root="/raw")`**, the
+  same conversion outside an agent and without the tool's truncation. Both it
+  and the tool are exported from the package root. (#11)
+
+### Changed
+
+- The core install is unchanged: `markitdown` is imported inside the converter
+  rather than at module scope, so `deep_wiki_agent` still imports with no loader
+  dependencies present, and a missing extra surfaces as an `ImportError`
+  carrying the install command. (#11)
+
+### Security
+
+- `read_document` reads bytes through the backend's `download_files` rather than
+  off the local filesystem, so it sees exactly the tree the agent's file tools
+  do — a state, store, or sandbox-backed bundle included. Reads are confined to
+  `/raw` with `..` segments collapsed before the check, so the model cannot aim
+  the loader at the wiki's own pages or outside the bundle, and output is capped
+  at `max_chars` (200 000 by default) so one oversized source cannot swallow the
+  context window. (#11)
+
 ## [0.5.0] - 2026-07-29
 
 ### Added
