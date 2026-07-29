@@ -139,6 +139,20 @@ What the prompts own beyond the skill's content:
 | The not-found sentence | prompt (`not_found_message`) | a per-deployment product decision, not a property of the format |
 | No answering from model knowledge | prompt | the skill's query section assumes a cooperative reader; the reader agent needs it as a hard rule |
 | Where the bundle root is | prompt (`WIKI_ROOT`) | a property of the mount, not of the format |
+| The answer's shape | prompt + schema (`structured_output`) | how a caller consumes an answer is an integration concern; a human-facing skill has no equivalent |
+
+### Why the answer's shape is opt-in
+
+`structured_output=True` is the one place where a contract is stated twice: as
+`WikiAnswer`, which the model must satisfy, and as a prompt section explaining
+how its fields relate to the not-found rule. The schema alone would be filled
+inconsistently — nothing in `list[str]` says "wiki pages, not sources under
+`raw/`", and nothing in `bool` says a partial hit is `found: true`.
+
+It stays off by default because the two representations are not
+interchangeable. Prose lets the reader answer as the question deserves; fields
+let a caller branch without parsing. The library cannot pick for a deployment
+it cannot see, so it exposes both and makes the choice one keyword wide.
 
 ## The lint tool
 

@@ -24,6 +24,9 @@ dependencies = [
     # backend surface is stable across a minor release.
     "deepagents>=0.6.5,<0.7",
     "langchain>=1.0,<2.0",
+    # Already in the tree through langchain; declared because `WikiAnswer` puts
+    # a Pydantic model on this package's public API.
+    "pydantic>=2.0,<3.0",
 ]
 
 [project.scripts]

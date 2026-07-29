@@ -5,6 +5,39 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-07-29
+
+### Added
+
+- **An optional structured response for the reader.**
+  `create_deep_wiki_agent(..., structured_output=True)` makes the agent answer
+  with a `WikiAnswer` — `answer`, `citations`, `not_covered`, `found` — under
+  `result["structured_response"]`. The reader's contract was expressible only as
+  prose before, so a caller wanting to know whether the bundle covered the
+  question had to string-match `not_found_message`: a test that stops working
+  the moment that sentence is reworded or translated. `found is False` says the
+  same thing structurally. Free text stays the default, since a schema costs the
+  model the freedom to shape an answer to the question. (#12)
+- **`WikiAnswer` is exported from the package root**, so callers can annotate
+  what they read out of `structured_response`. Its field descriptions travel to
+  the model as part of the schema. (#12)
+- **`STRUCTURED_OUTPUT_BLOCK_TEMPLATE`**, the prompt section that tells the
+  model how the four fields relate to the not-found contract — that a partial
+  hit is `found: true` with `not_covered` set, and that `citations` holds wiki
+  pages rather than sources under `raw/`. It is appended to the reader prompt
+  only when `structured_output=True`, the way `LINT_TOOL_BLOCK` is appended to
+  the manager's. (#12)
+
+### Changed
+
+- **`READER_SYSTEM_PROMPT_TEMPLATE` takes a fourth placeholder**,
+  `structured_output_block`. Code that formats the template itself must pass it
+  (an empty string reproduces the previous prompt exactly); the factory fills it
+  for you. (#12)
+- **`pydantic>=2.0,<3.0` is now a declared dependency.** It was already present
+  through `langchain`; it is explicit now that a Pydantic model sits on this
+  package's public API. (#12)
+
 ## [0.4.0] - 2026-07-26
 
 ### Added

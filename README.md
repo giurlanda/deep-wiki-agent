@@ -136,6 +136,44 @@ reader = create_deep_wiki_agent(
 )
 ```
 
+### Getting the answer as data
+
+Matching that sentence to detect a miss is brittle — it breaks the moment you translate it. Pass `structured_output=True` and the reader answers with a `WikiAnswer` instead:
+
+```python
+from deep_wiki_agent import WikiAnswer, create_deep_wiki_agent
+
+reader = create_deep_wiki_agent(
+    model="anthropic:claude-sonnet-5",
+    wiki_path="./my-wiki",
+    structured_output=True,
+)
+
+result = reader.invoke(
+    {"messages": [{"role": "user", "content": "What is the notice period?"}]},
+    config={"configurable": {"thread_id": "q-1"}},
+)
+
+answer: WikiAnswer = result["structured_response"]
+if not answer.found:
+    ...                      # the bundle covers none of the question
+elif answer.not_covered:
+    ...                      # partial hit; `not_covered` names the gap
+for path in answer.citations:
+    ...                      # e.g. "/wiki/concepts/preavviso.md"
+```
+
+| Field | Type | Meaning |
+|---|---|---|
+| `answer` | `str` | the answer; the not-found message, verbatim, when `found` is false |
+| `citations` | `list[str]` | bundle paths of the wiki pages the answer rests on |
+| `not_covered` | `str \| None` | the part of the question the bundle does not answer |
+| `found` | `bool` | false only when the bundle covers none of the question |
+
+The trade-off, and why free text stays the default: a schema buys you a record you can branch on, and costs the model the freedom to shape an answer to the question — a table, a staged explanation, an aside about two pages that disagree. Take it when a program consumes the answer, leave it when a person reads it.
+
+The flag is mutually exclusive with `create_deep_agent`'s `response_format` passthrough; pass your own schema that way instead if `WikiAnswer` does not fit, and note that only `structured_output=True` adds the prompt section telling the model how to fill the fields.
+
 ### Ingesting PDFs, docx, web pages
 
 The library ships no document loaders on purpose: which formats your wiki ingests is domain-specific, and loaders drag in heavy dependencies. Pass your own as tools:
@@ -242,7 +280,8 @@ To add genuine skills alongside the agent, `create_deep_agent`'s own `skills=` p
 ## API
 
 - `create_wiki_manager_agent(*, model, wiki_path=None, backend=None, ...)` — read/write agent over an OKF bundle.
-- `create_deep_wiki_agent(*, model, wiki_path=None, backend=None, not_found_message=..., ...)` — read-only agent that answers only from the bundle.
+- `create_deep_wiki_agent(*, model, wiki_path=None, backend=None, not_found_message=..., structured_output=False, ...)` — read-only agent that answers only from the bundle.
+- `WikiAnswer` — the reader's optional structured response: `answer`, `citations`, `not_covered`, `found`.
 - `create_okf_lint_tool(wiki_path=None, *, backend=None)` / `run_okf_lint(wiki_path=None, *, backend=None, fix=False)` — OKF conformance validation, against a local directory or any deepagents backend.
 - `read_only_permissions()` / `write_protect_permissions(paths)` — the permission sets, reusable in your own agents.
 - `MANAGER_SYSTEM_PROMPT_TEMPLATE` / `READER_SYSTEM_PROMPT_TEMPLATE` — the instructions each agent follows, as `str.format` templates.

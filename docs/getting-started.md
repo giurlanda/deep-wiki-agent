@@ -100,6 +100,53 @@ reader = create_deep_wiki_agent(
 The surrounding contract does not change: no guessing, no outside knowledge,
 and a partially covered question is answered in part with the gap named.
 
+## Consume the answer from code
+
+String-matching the not-found sentence to detect a miss breaks as soon as you
+reword or translate it. `structured_output=True` returns a
+[`WikiAnswer`](api.md#deep_wiki_agent.schemas.WikiAnswer) under
+`result["structured_response"]` instead:
+
+```python
+from deep_wiki_agent import WikiAnswer, create_deep_wiki_agent
+
+reader = create_deep_wiki_agent(
+    model="anthropic:claude-sonnet-5",
+    wiki_path="./my-wiki",
+    structured_output=True,
+)
+
+result = reader.invoke(
+    {"messages": [{"role": "user", "content": "What is the notice period?"}]},
+    config={"configurable": {"thread_id": "q-1"}},
+)
+
+answer: WikiAnswer = result["structured_response"]
+if not answer.found:
+    raise LookupError(answer.answer)
+print(answer.answer)
+print("sources:", answer.citations)
+if answer.not_covered:
+    print("gap:", answer.not_covered)
+```
+
+The four fields are the prose contract made checkable: `found` is false only
+when the bundle covers none of the question, `not_covered` names the gap in a
+partial hit, and `citations` holds bundle paths such as
+`/wiki/concepts/preavviso.md`.
+
+!!! note "Why free text is still the default"
+    A schema costs the model the freedom to lay an answer out as the question
+    deserves — a table, a staged explanation, an aside about two pages that
+    disagree. Turn it on when a program consumes the answer; leave it off when
+    a person reads it.
+
+    The flag also sets `response_format` on the underlying deep agent, so it
+    cannot be combined with passing `response_format` yourself. Do that instead
+    if `WikiAnswer` does not fit your caller — but note that only
+    `structured_output=True` adds the prompt section that tells the model how
+    the fields relate to the not-found contract.
+
 ## Ingest PDFs, docx, web pages
 
 The library ships no document loaders: which formats your wiki ingests is

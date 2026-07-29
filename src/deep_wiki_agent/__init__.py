@@ -34,9 +34,10 @@ from deep_wiki_agent.prompts import (
     MANAGER_SYSTEM_PROMPT_TEMPLATE,
     READER_SYSTEM_PROMPT_TEMPLATE,
 )
+from deep_wiki_agent.schemas import WikiAnswer
 from deep_wiki_agent.tools import create_okf_lint_tool, run_okf_lint
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 __all__ = [
     "BUNDLE_SKELETON",
@@ -45,6 +46,7 @@ __all__ = [
     "RAW_DIR",
     "READER_SYSTEM_PROMPT_TEMPLATE",
     "WIKI_ROOT",
+    "WikiAnswer",
     "__version__",
     "create_deep_wiki_agent",
     "create_okf_lint_tool",
