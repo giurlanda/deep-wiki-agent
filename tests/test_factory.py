@@ -16,6 +16,7 @@ from deepagents.middleware.filesystem import FilesystemPermission
 
 from deep_wiki_agent import (
     DEFAULT_NOT_FOUND_MESSAGE,
+    WikiAnswer,
     create_deep_wiki_agent,
     create_wiki_manager_agent,
 )
@@ -395,6 +396,106 @@ class TestReaderPrompt:
         )
 
         assert instruction not in prompt
+
+
+class TestReaderStructuredOutput:
+    def test_free_text_is_the_default(self, wiki_path, model):
+        agent = create_deep_wiki_agent(model=model, wiki_path=wiki_path)
+
+        assert "response_format" not in kwargs_of(agent)
+
+    def test_default_prompt_says_nothing_about_fields(self, wiki_path, model):
+        """The block must not leak into the free-text agent's token budget."""
+        prompt = system_prompt_of(
+            create_deep_wiki_agent(model=model, wiki_path=wiki_path)
+        )
+
+        assert "## Response format" not in prompt
+
+    def test_flag_installs_the_builtin_schema(self, wiki_path, model):
+        agent = create_deep_wiki_agent(
+            model=model, wiki_path=wiki_path, structured_output=True
+        )
+
+        assert kwargs_of(agent)["response_format"] is WikiAnswer
+
+    @pytest.mark.parametrize(
+        "field", ["`answer`", "`citations`", "`not_covered`", "`found`"]
+    )
+    def test_flag_explains_every_field_in_the_prompt(self, wiki_path, model, field):
+        """A schema the model is not told how to fill is filled inconsistently."""
+        prompt = system_prompt_of(
+            create_deep_wiki_agent(
+                model=model, wiki_path=wiki_path, structured_output=True
+            )
+        )
+
+        assert "## Response format" in prompt
+        assert field in prompt
+
+    def test_prompt_block_is_rendered_not_left_templated(self, wiki_path, model):
+        """`str.format` does not recurse, so the block is formatted separately."""
+        prompt = system_prompt_of(
+            create_deep_wiki_agent(
+                model=model, wiki_path=wiki_path, structured_output=True
+            )
+        )
+
+        assert "{wiki_root}" not in prompt
+        assert "{raw_dir}" not in prompt
+        assert "/wiki/concepts/some-page.md" in prompt
+
+    def test_not_found_contract_survives_the_schema(self, wiki_path, model):
+        """`found: false` replaces the string match, it does not remove the rule."""
+        prompt = system_prompt_of(
+            create_deep_wiki_agent(
+                model=model, wiki_path=wiki_path, structured_output=True
+            )
+        )
+
+        assert DEFAULT_NOT_FOUND_MESSAGE in prompt
+        assert "only source of truth" in prompt
+
+    def test_shows_no_link_written_as_an_absolute_path(self, wiki_path, model):
+        prompt = system_prompt_of(
+            create_deep_wiki_agent(
+                model=model, wiki_path=wiki_path, structured_output=True
+            )
+        )
+
+        assert "](/" not in prompt
+
+    def test_conflicts_with_an_explicit_response_format(self, wiki_path, model):
+        with pytest.raises(ValueError, match="not both"):
+            create_deep_wiki_agent(
+                model=model,
+                wiki_path=wiki_path,
+                structured_output=True,
+                response_format=WikiAnswer,
+            )
+
+    def test_an_explicit_response_format_alone_still_passes_through(
+        self, wiki_path, model
+    ):
+        """The pre-existing passthrough is untouched by the new flag."""
+        agent = create_deep_wiki_agent(
+            model=model, wiki_path=wiki_path, response_format=WikiAnswer
+        )
+
+        assert kwargs_of(agent)["response_format"] is WikiAnswer
+        assert "## Response format" not in system_prompt_of(agent)
+
+    def test_custom_prompt_keeps_the_schema_and_loses_the_block(self, wiki_path, model):
+        """Documented behaviour: overriding the prompt drops what it carried."""
+        agent = create_deep_wiki_agent(
+            model=model,
+            wiki_path=wiki_path,
+            structured_output=True,
+            system_prompt="Custom.",
+        )
+
+        assert system_prompt_of(agent) == "Custom."
+        assert kwargs_of(agent)["response_format"] is WikiAnswer
 
 
 class TestArgumentValidation:

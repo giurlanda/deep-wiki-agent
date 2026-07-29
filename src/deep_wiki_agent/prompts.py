@@ -25,6 +25,7 @@ __all__ = [
     "LINT_TOOL_BLOCK",
     "MANAGER_SYSTEM_PROMPT_TEMPLATE",
     "READER_SYSTEM_PROMPT_TEMPLATE",
+    "STRUCTURED_OUTPUT_BLOCK_TEMPLATE",
 ]
 
 BUNDLE_SKELETON: tuple[str, ...] = (
@@ -69,6 +70,36 @@ you want malformed timestamps normalized automatically.
 Its findings are the floor, not the ceiling. The rest of the checklist —
 contradictions, superseded claims, concepts that deserve a page, informational
 gaps — is judgment no script can give, and it is still yours to do.
+"""
+
+STRUCTURED_OUTPUT_BLOCK_TEMPLATE = """
+## Response format
+
+Return your answer as the structured object you have been given a schema for, \
+not as prose. Its fields carry the parts of the contract above, so fill them \
+consistently with one another:
+
+- `answer` — the answer itself, with the citations and the caveats section \
+"How to answer" asks for. When the bundle covers none of the question, put the \
+not-found sentence here verbatim and write nothing else in this field.
+- `citations` — every wiki page the answer rests on, as a path from the bundle \
+root (e.g. `{wiki_root}wiki/concepts/some-page.md`). One entry per page, no \
+duplicates. Cite wiki pages, not the sources under `{raw_dir}/`. Leave it \
+empty when nothing was found.
+- `not_covered` — the part of the question the bundle does not answer, in the \
+language of the question. Null when the bundle answers all of it; a partial \
+answer must fill it.
+- `found` — false only when the bundle covers none of the question. A partial \
+hit is `found: true` with `not_covered` set.
+
+Having fields does not relax the contract, it only records it: `found: false` \
+is still a refusal to guess, never a licence to answer from your own knowledge.
+"""
+"""Appended to the reader prompt when a structured response is requested.
+
+Formatted with ``wiki_root`` and ``raw_dir`` before it is substituted into
+``READER_SYSTEM_PROMPT_TEMPLATE``, since :meth:`str.format` does not recurse
+into the values it interpolates.
 """
 
 MANAGER_SYSTEM_PROMPT_TEMPLATE = """\
@@ -363,4 +394,4 @@ page has an open point on the subject, say so and give both versions.
 - Flag staleness when a page's `timestamp` makes it likely out of date for \
 the question asked.
 - Answer in the language the user writes in.
-"""
+{structured_output_block}"""

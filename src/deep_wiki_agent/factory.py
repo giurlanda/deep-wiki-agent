@@ -30,7 +30,9 @@ from deep_wiki_agent.prompts import (
     LINT_TOOL_BLOCK,
     MANAGER_SYSTEM_PROMPT_TEMPLATE,
     READER_SYSTEM_PROMPT_TEMPLATE,
+    STRUCTURED_OUTPUT_BLOCK_TEMPLATE,
 )
+from deep_wiki_agent.schemas import WikiAnswer
 from deep_wiki_agent.tools import create_okf_lint_tool
 
 if TYPE_CHECKING:
@@ -179,6 +181,7 @@ def create_deep_wiki_agent(
     wiki_path: str | Path | None = None,
     backend: BackendProtocol | None = None,
     not_found_message: str = DEFAULT_NOT_FOUND_MESSAGE,
+    structured_output: bool = False,
     virtual_mode: bool = True,
     system_prompt: str | SystemMessage | None = None,
     tools: Sequence[BaseTool] = (),
@@ -213,12 +216,24 @@ def create_deep_wiki_agent(
             match your product's voice or language; the surrounding contract
             (no guessing, no outside knowledge, partial answers allowed and
             labelled) is unchanged.
+        structured_output: When ``True``, the agent answers with a
+            :class:`~deep_wiki_agent.schemas.WikiAnswer` — ``answer``,
+            ``citations``, ``not_covered``, ``found`` — found under
+            ``result["structured_response"]``, and its prompt gains a section
+            explaining how to fill those fields. This is what makes "the wiki
+            does not cover this" testable as ``found is False`` instead of a
+            string comparison against ``not_found_message``. The cost is the
+            model's freedom to shape a prose answer to the question, which is
+            why the free-text default stays the default. Mutually exclusive
+            with passing your own ``response_format``.
         virtual_mode: Confine the filesystem backend to the bundle directory,
             blocking ``../`` and ``~/`` escapes.
         system_prompt: Override for the built-in reader prompt. Note that the
-            not-found contract and the query protocol live in that prompt: if
-            you replace it, restate them yourself. The read-only *enforcement*,
-            by contrast, is in the permissions and survives any prompt.
+            not-found contract, the query protocol and the field-filling
+            instructions ``structured_output`` would add all live in that
+            prompt: if you replace it, restate whichever you still want.
+            The read-only *enforcement*, by contrast, is in the permissions and
+            survives any prompt.
         tools: Extra read-only tools. Do not pass tools that can write to the
             bundle: the filesystem permissions cannot police tools they do not
             mediate.
@@ -234,11 +249,19 @@ def create_deep_wiki_agent(
         The compiled deep agent graph, ready for ``invoke`` / ``astream``.
 
     Raises:
-        ValueError: If ``model`` is missing, or if neither or both of
-            ``wiki_path`` and ``backend`` are given.
+        ValueError: If ``model`` is missing, if neither or both of
+            ``wiki_path`` and ``backend`` are given, or if ``structured_output``
+            is combined with an explicit ``response_format``.
         FileNotFoundError: If ``wiki_path`` does not exist.
     """
     _require_model(model, "create_deep_wiki_agent")
+
+    if structured_output and "response_format" in create_deep_agent_kwargs:
+        msg = (
+            "pass either `structured_output=True` (the built-in WikiAnswer "
+            "schema) or your own `response_format`, not both"
+        )
+        raise ValueError(msg)
 
     effective_backend = _resolve_backend(
         wiki_path=wiki_path,
@@ -252,7 +275,17 @@ def create_deep_wiki_agent(
             wiki_root=WIKI_ROOT,
             raw_dir=RAW_DIR,
             not_found_message=not_found_message,
+            structured_output_block=(
+                STRUCTURED_OUTPUT_BLOCK_TEMPLATE.format(
+                    wiki_root=WIKI_ROOT, raw_dir=RAW_DIR
+                )
+                if structured_output
+                else ""
+            ),
         )
+
+    if structured_output:
+        create_deep_agent_kwargs["response_format"] = WikiAnswer
 
     return create_deep_agent(
         model=model,

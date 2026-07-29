@@ -310,6 +310,7 @@ source = { editable = "." }
 dependencies = [
     { name = "deepagents" },
     { name = "langchain" },
+    { name = "pydantic" },
 ]
 
 [package.optional-dependencies]
@@ -340,6 +341,7 @@ requires-dist = [
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6,<2.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = ">=0.26" },
+    { name = "pydantic", specifier = ">=2.0,<3.0" },
 ]
 provides-extras = ["docs", "examples"]
 

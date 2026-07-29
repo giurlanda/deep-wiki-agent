@@ -6,6 +6,25 @@
 
 ::: deep_wiki_agent.factory.create_deep_wiki_agent
 
+## Structured responses
+
+::: deep_wiki_agent.schemas.WikiAnswer
+
+Opt in with `create_deep_wiki_agent(..., structured_output=True)`. The answer
+then arrives as a `WikiAnswer` under `result["structured_response"]`, and the
+reader's prompt gains a section explaining how the fields map onto the
+not-found contract.
+
+The value is that `found is False` replaces a string comparison against
+`not_found_message`, which stops being a reliable test the moment the message
+is reworded or translated. The cost is the model's freedom to shape a prose
+answer to the question, which is why free text remains the default.
+
+The flag sets `response_format` on the underlying deep agent, so it is mutually
+exclusive with passing `response_format` yourself — a `ValueError` if you pass
+both. Passing your own schema that way remains supported, and skips the prompt
+section, since that section describes `WikiAnswer`'s fields specifically.
+
 ## Permissions
 
 ::: deep_wiki_agent.backends.read_only_permissions
@@ -63,10 +82,17 @@ rewriting from scratch. They are `str.format` templates:
 | Template | Placeholders |
 |---|---|
 | `MANAGER_SYSTEM_PROMPT_TEMPLATE` | `wiki_root`, `raw_dir`, `lint_block` |
-| `READER_SYSTEM_PROMPT_TEMPLATE` | `wiki_root`, `raw_dir`, `not_found_message` |
+| `READER_SYSTEM_PROMPT_TEMPLATE` | `wiki_root`, `raw_dir`, `not_found_message`, `structured_output_block` |
 
 `lint_block` is filled with `LINT_TOOL_BLOCK` when the `okf_lint` tool is
-attached, and with an empty string otherwise.
+attached, and with an empty string otherwise. `structured_output_block` works
+the same way: `STRUCTURED_OUTPUT_BLOCK_TEMPLATE` when `structured_output=True`,
+an empty string otherwise. Both blocks are plain strings, so an omitted one
+costs the agent nothing.
+
+`STRUCTURED_OUTPUT_BLOCK_TEMPLATE` is itself a `str.format` template taking
+`wiki_root` and `raw_dir` — render it before substituting it in, since
+`str.format` does not recurse into the values it interpolates.
 
 ```python
 from deep_wiki_agent import READER_SYSTEM_PROMPT_TEMPLATE
@@ -75,6 +101,7 @@ prompt = READER_SYSTEM_PROMPT_TEMPLATE.format(
     wiki_root="/",
     raw_dir="/raw",
     not_found_message="Nothing found in the knowledge base.",
+    structured_output_block="",
 ) + "\n\nAlways answer in Italian."
 ```
 
