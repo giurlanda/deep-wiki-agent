@@ -5,6 +5,36 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-07-30
+
+### Fixed
+
+- **`.gitignore`'s VS Code launch-config entry had a typo.** It ignored
+  `.vscode/launche.json`, a file nothing ever wrote, while `.vscode/launch.json`
+  — the file VS Code actually creates — stayed trackable. Corrected to
+  `.vscode/launch.json`.
+
+### Added
+
+- **A GitHub Actions CI pipeline**, `.github/workflows/ci.yml`, with four jobs:
+  `ruff check` and `ruff format --check`; the test suite across Python 3.12 and
+  3.13; a build that asserts the `okf-wiki` skill stays out of the wheel while
+  `okf_lint.py` ships inside it, uploading the built `dist/`; and a strict
+  `mkdocs build`.
+
+### Changed
+
+- **`examples/debug_middleware.py`'s type-only imports moved behind
+  `TYPE_CHECKING`.** `AgentState`, `Runtime`, `Command` and `Callable` are used
+  only in annotations, so importing them unconditionally pulled in `langgraph`
+  and `langchain` typing surface the example has no runtime need for. The
+  middleware hooks' unused `runtime` parameters are now `_runtime`, which
+  satisfies ruff's unused-argument check without a `noqa`.
+- `.gitignore` gained `examples/raw/` and an entry for the VS Code launch
+  config (misspelled `launche.json`).
+- `examples/debug_middleware.py` reformatted to the project's `ruff format`
+  style; its `Callable` import moved from `typing` to `collections.abc`.
+
 ## [0.6.0] - 2026-07-29
 
 ### Added
