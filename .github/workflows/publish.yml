@@ -1,0 +1,52 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Verify tag matches package version
+        run: |
+          set -euo pipefail
+          tag_version="${GITHUB_REF_NAME#v}"
+          pkg_version=$(grep -oP '(?<=__version__ = ")[^"]+' src/deep_wiki_agent/__init__.py)
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match package version ${pkg_version}" >&2
+            exit 1
+          fi
+      - run: uv build
+      - name: Verify the skill stays out of the wheel
+        run: |
+          set -euo pipefail
+          wheel=$(ls dist/*.whl)
+          contents=$(python -m zipfile -l "$wheel")
+          if grep -q 'deep_wiki_agent/skills/' <<<"$contents"; then
+            echo "::error::the okf-wiki skill leaked into the wheel" >&2
+            exit 1
+          fi
+          grep -q 'deep_wiki_agent/okf_lint.py' <<<"$contents"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

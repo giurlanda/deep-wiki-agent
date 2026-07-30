@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A GitHub Actions workflow to publish releases to PyPI**,
+  `.github/workflows/publish.yml`, triggered on `v*.*.*` tag pushes. It
+  rebuilds the wheel, verifies the tag matches `__version__`, reruns the same
+  check from the CI build job that keeps the `okf-wiki` skill out of the
+  wheel, then publishes via `pypa/gh-action-pypi-publish` using PyPI Trusted
+  Publishing (OIDC) — no API token stored in the repo.
 - **A GitHub Actions CI pipeline**, `.github/workflows/ci.yml`, with four jobs:
   `ruff check` and `ruff format --check`; the test suite across Python 3.12 and
   3.13; a build that asserts the `okf-wiki` skill stays out of the wheel while
