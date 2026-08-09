@@ -48,7 +48,7 @@ uv add deep-wiki-agent
 
 Python 3.12+. You also need a provider package for the model you pass, e.g. `pip install langchain-anthropic`.
 
-To ingest PDFs and other binary formats, add the optional `documents` extra — `pip install "deep-wiki-agent[documents]"` — which enables [the ready-made `read_document` tool](#ingesting-pdfs-docx-web-pages). The core install stays free of loader dependencies.
+To ingest PDFs and other binary formats, add the optional `documents` extra — `pip install "deep-wiki-agent[documents]"` — which enables [the ready-made `read_document` tool](#ingesting-pdfs-docx-web-pages). For [semantic search](#semantic-search-over-a-large-bundle) over a large bundle, add `semantic` instead: it includes `documents`. The core install stays free of loader and retrieval dependencies.
 
 ## The knowledge lives in the system prompt
 
@@ -220,6 +220,67 @@ markdown = read_document("paper.pdf", wiki_path="./my-wiki")
 
 Writing your own loader instead remains supported — anything you pass in `tools=` is handed straight to the agent.
 
+### Semantic search over a large bundle
+
+The indexes and the link graph are how both agents navigate, and up to a few hundred pages that is enough — it is [the whole point of the format](#why-a-wiki-instead-of-rag). Past that it degrades: category indexes get long, and a page nobody linked from the right place stops being findable. The `semantic` extra adds the other way in, without changing what a bundle is.
+
+```bash
+pip install "deep-wiki-agent[semantic]"
+# or
+uv add "deep-wiki-agent[semantic]"
+```
+
+Hand both factories an embedding model and a vector store, and the tools appear along with the prompt section that says how to use them:
+
+```python
+from langchain_openai import OpenAIEmbeddings
+from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode
+
+from deep_wiki_agent import create_wiki_manager_agent
+
+embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+store = QdrantVectorStore.from_existing_collection(
+    collection_name="my-wiki",
+    url="http://localhost:6333",
+    embedding=embeddings,
+    sparse_embedding=FastEmbedSparse(model_name="Qdrant/bm25"),
+    retrieval_mode=RetrievalMode.HYBRID,   # dense + BM25 keyword
+    vector_name="dense",
+    sparse_vector_name="sparse",
+)
+
+manager = create_wiki_manager_agent(
+    model="anthropic:claude-sonnet-5",
+    wiki_path="./my-wiki",
+    embeddings=embeddings,
+    vector_store=store,
+)
+```
+
+No vector store is pinned by the extra: any LangChain `VectorStore` works, and the one above is an example, not a requirement. A store configured for hybrid retrieval keeps its keyword half — the query reaches it as text rather than as a vector, which is what would otherwise disable BM25 silently.
+
+The two agents get different halves, and this is not a matter of prompting:
+
+| | `semantic_ingest` | `semantic_search` |
+|---|---|---|
+| `create_wiki_manager_agent` | yes | yes |
+| `create_deep_wiki_agent` | **no** | yes |
+
+The reader is read-only over the bundle, so it never gets the tool that writes. Its prompt section says the rest: a hit is an entry point, not an answer — open the page, read it in full, cite the page and not the excerpt, and never conclude "not found" from an empty search alone.
+
+Ingestion reads the wiki's pages and the sources under `/raw` (converted through markitdown, so PDF, docx, csv and the rest are covered), through the backend rather than off the local filesystem. Re-indexing is cheap and safe to repeat: unchanged files are skipped, a rewritten page updates its chunks instead of duplicating them, and the chunks of a page that shrank or was deleted are removed. A small manifest under `.okf/` is what makes that possible; the index itself is derived data you can delete and rebuild at any time.
+
+To build or refresh the index outside an agent — a cron job, a post-commit hook, a deploy step — the same code path is a function:
+
+```python
+from deep_wiki_agent import ingest_semantic_index
+
+report = ingest_semantic_index(embeddings, store, wiki_path="./my-wiki")
+print(report.summary())
+```
+
+`SemanticConfig` holds everything the model does not get to choose: chunk sizes, which directories may be indexed, batch sizes, an optional server-side `filter_builder` for your store's native filters, and where the manifest lives.
+
 ### Human approval before writes
 
 Both factories forward every remaining `create_deep_agent` argument, so the usual deepagents controls apply:
@@ -311,6 +372,8 @@ To add genuine skills alongside the agent, `create_deep_agent`'s own `skills=` p
 - `WikiAnswer` — the reader's optional structured response: `answer`, `citations`, `not_covered`, `found`.
 - `create_okf_lint_tool(wiki_path=None, *, backend=None)` / `run_okf_lint(wiki_path=None, *, backend=None, fix=False)` — OKF conformance validation, against a local directory or any deepagents backend.
 - `create_read_document_tool(wiki_path=None, *, backend=None, root="/raw", max_chars=200_000)` / `read_document(path, *, wiki_path=None, backend=None, root="/raw")` — source-document loading via markitdown, confined to `/raw`. Requires the `documents` extra.
+- `create_semantic_tools(embeddings, vector_store, *, wiki_path=None, backend=None, search_k=5, config=None)` / `ingest_semantic_index(...)` — the `semantic_ingest` and `semantic_search` tools, and the ingestion function behind them. Requires the `semantic` extra.
+- `SemanticConfig` / `ChunkingConfig` / `IngestReport` — index configuration and what one ingest did.
 - `read_only_permissions()` / `write_protect_permissions(paths)` — the permission sets, reusable in your own agents.
 - `MANAGER_SYSTEM_PROMPT_TEMPLATE` / `READER_SYSTEM_PROMPT_TEMPLATE` — the instructions each agent follows, as `str.format` templates.
 - `BUNDLE_SKELETON` — the bundle layout the manager bootstraps, as bundle-relative paths.

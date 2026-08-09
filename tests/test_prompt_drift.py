@@ -42,6 +42,8 @@ from deep_wiki_agent.prompts import (
     LINT_TOOL_BLOCK,
     MANAGER_SYSTEM_PROMPT_TEMPLATE,
     READER_SYSTEM_PROMPT_TEMPLATE,
+    SEMANTIC_MANAGER_BLOCK,
+    SEMANTIC_READER_BLOCK,
 )
 
 REPO_ROOT = Path(__file__).parents[1]
@@ -50,13 +52,20 @@ SKILL_MD = REPO_ROOT / "skills" / "okf-wiki" / "SKILL.md"
 
 SKILL_MD_SHA256 = "a8fe0262a0b65c7fc0491616e8df45e100a0570ef992a139ddc20fe0e298d22a"
 
+# Both optional blocks are rendered in: a section that only exists when a tool
+# is attached still has to obey the coverage rules, and the reader's block is
+# exactly where a write instruction could slip into a read-only prompt.
 MANAGER_PROMPT = MANAGER_SYSTEM_PROMPT_TEMPLATE.format(
-    wiki_root=WIKI_ROOT, raw_dir="/raw", lint_block=LINT_TOOL_BLOCK
+    wiki_root=WIKI_ROOT,
+    raw_dir="/raw",
+    lint_block=LINT_TOOL_BLOCK,
+    semantic_block=SEMANTIC_MANAGER_BLOCK,
 )
 READER_PROMPT = READER_SYSTEM_PROMPT_TEMPLATE.format(
     wiki_root=WIKI_ROOT,
     raw_dir="/raw",
     not_found_message="Not found.",
+    semantic_block=SEMANTIC_READER_BLOCK,
     structured_output_block="",
 )
 

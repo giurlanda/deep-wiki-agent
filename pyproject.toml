@@ -51,7 +51,12 @@ docs = [
 
 examples = [
     "langchain-openai>=1.0,<2.0",
-    "colorama"
+    "colorama",
+    # For `examples/semantic_wiki.py`: one concrete hybrid store, so the
+    # example runs. The library itself pins no vector store.
+    "langchain-qdrant>=0.2",
+    "qdrant-client>=1.12",
+    "fastembed>=0.4",
 ]
 
 # Opt-in loader stack for `create_read_document_tool`. Enumerated rather than
@@ -59,6 +64,16 @@ examples = [
 # transcription chain — neither is reachable from a bundle's `raw/` directory.
 documents = [
     "markitdown[docx,outlook,pdf,pptx,xls,xlsx]>=0.1,<0.2",
+]
+
+# Opt-in stack for `create_semantic_tools` and the factories' `embeddings` /
+# `vector_store` parameters. It includes `documents` because ingestion has to
+# read whatever sits in `raw/`, and a PDF there is the common case, not the
+# exception. No vector store is pinned: which one to use is the caller's
+# decision, and the bundle stays a directory either way.
+semantic = [
+    "deep-wiki-agent[documents]",
+    "langchain-text-splitters>=0.3,<2.0",
 ]
 
 [dependency-groups]

@@ -20,6 +20,10 @@ from deep_wiki_agent import (
     create_deep_wiki_agent,
     create_wiki_manager_agent,
 )
+from deep_wiki_agent.semantic import (
+    SEMANTIC_INGEST_TOOL_NAME,
+    SEMANTIC_SEARCH_TOOL_NAME,
+)
 from deep_wiki_agent.tools.lint import OKF_LINT_TOOL_NAME
 
 
@@ -531,6 +535,177 @@ class TestArgumentValidation:
         agent = factory(model=model, backend=backend)
 
         assert kwargs_of(agent)["backend"] is backend
+
+
+class TestSemanticWiring:
+    """Semantic search is opt-in, and asymmetric between the two agents."""
+
+    def test_off_by_default(self, wiki_path, model):
+        agent = create_wiki_manager_agent(model=model, wiki_path=wiki_path)
+
+        names = {tool.name for tool in kwargs_of(agent)["tools"]}
+
+        assert not names & {SEMANTIC_INGEST_TOOL_NAME, SEMANTIC_SEARCH_TOOL_NAME}
+        assert "semantic index" not in system_prompt_of(agent)
+
+    def test_the_manager_gets_both_halves(
+        self, wiki_path, model, embeddings, vector_store
+    ):
+        agent = create_wiki_manager_agent(
+            model=model,
+            wiki_path=wiki_path,
+            embeddings=embeddings,
+            vector_store=vector_store,
+        )
+
+        names = {tool.name for tool in kwargs_of(agent)["tools"]}
+
+        assert {SEMANTIC_INGEST_TOOL_NAME, SEMANTIC_SEARCH_TOOL_NAME} <= names
+
+    def test_the_reader_gets_search_only(
+        self, wiki_path, model, embeddings, vector_store
+    ):
+        """The ingest tool writes, and this agent is read-only by construction."""
+        agent = create_deep_wiki_agent(
+            model=model,
+            wiki_path=wiki_path,
+            embeddings=embeddings,
+            vector_store=vector_store,
+        )
+
+        names = {tool.name for tool in kwargs_of(agent)["tools"]}
+
+        assert SEMANTIC_SEARCH_TOOL_NAME in names
+        assert SEMANTIC_INGEST_TOOL_NAME not in names
+
+    def test_extra_tools_survive_alongside_the_semantic_ones(
+        self, wiki_path, model, embeddings, vector_store
+    ):
+        from langchain_core.tools import StructuredTool
+
+        extra = StructuredTool.from_function(
+            func=lambda: "ok", name="custom", description="A custom tool."
+        )
+
+        agent = create_deep_wiki_agent(
+            model=model,
+            wiki_path=wiki_path,
+            tools=[extra],
+            embeddings=embeddings,
+            vector_store=vector_store,
+        )
+
+        assert "custom" in {tool.name for tool in kwargs_of(agent)["tools"]}
+
+    def test_the_tools_read_through_the_agents_own_backend(
+        self, wiki_path, model, embeddings, vector_store
+    ):
+        """Not off the local filesystem: the index covers the tree the agent sees."""
+        agent = create_wiki_manager_agent(
+            model=model,
+            wiki_path=wiki_path,
+            embeddings=embeddings,
+            vector_store=vector_store,
+        )
+
+        search = next(
+            tool
+            for tool in kwargs_of(agent)["tools"]
+            if tool.name == SEMANTIC_SEARCH_TOOL_NAME
+        )
+
+        assert search.func.__closure__ is not None
+
+    @pytest.mark.parametrize(
+        "factory", [create_wiki_manager_agent, create_deep_wiki_agent]
+    )
+    def test_half_a_configuration_is_refused(
+        self, factory, wiki_path, model, embeddings
+    ):
+        with pytest.raises(ValueError, match="both `embeddings` and `vector_store`"):
+            factory(model=model, wiki_path=wiki_path, embeddings=embeddings)
+
+    def test_search_k_reaches_the_tool(
+        self, wiki_path, model, embeddings, vector_store
+    ):
+        agent = create_deep_wiki_agent(
+            model=model,
+            wiki_path=wiki_path,
+            embeddings=embeddings,
+            vector_store=vector_store,
+            search_k=3,
+        )
+
+        search = next(
+            tool
+            for tool in kwargs_of(agent)["tools"]
+            if tool.name == SEMANTIC_SEARCH_TOOL_NAME
+        )
+
+        assert search.args["k"]["default"] == 3
+
+
+class TestSemanticPrompts:
+    def test_the_manager_is_told_to_keep_the_index_current(
+        self, wiki_path, model, embeddings, vector_store
+    ):
+        prompt = system_prompt_of(
+            create_wiki_manager_agent(
+                model=model,
+                wiki_path=wiki_path,
+                embeddings=embeddings,
+                vector_store=vector_store,
+            )
+        )
+
+        assert "## The semantic index" in prompt
+        assert SEMANTIC_INGEST_TOOL_NAME in prompt
+
+    def test_the_reader_is_told_the_index_is_an_entry_point_not_an_answer(
+        self, wiki_path, model, embeddings, vector_store
+    ):
+        prompt = system_prompt_of(
+            create_deep_wiki_agent(
+                model=model,
+                wiki_path=wiki_path,
+                embeddings=embeddings,
+                vector_store=vector_store,
+            )
+        )
+
+        assert "## Semantic search" in prompt
+        assert "Cite the page, never the excerpt." in prompt
+
+    def test_the_reader_is_never_told_how_to_ingest(
+        self, wiki_path, model, embeddings, vector_store
+    ):
+        prompt = system_prompt_of(
+            create_deep_wiki_agent(
+                model=model,
+                wiki_path=wiki_path,
+                embeddings=embeddings,
+                vector_store=vector_store,
+            )
+        )
+
+        assert SEMANTIC_INGEST_TOOL_NAME not in prompt
+
+    def test_an_overridden_prompt_still_gets_the_tools(
+        self, wiki_path, model, embeddings, vector_store
+    ):
+        """Replacing the prompt drops the instructions, never the wiring."""
+        agent = create_wiki_manager_agent(
+            model=model,
+            wiki_path=wiki_path,
+            system_prompt="Just do it.",
+            embeddings=embeddings,
+            vector_store=vector_store,
+        )
+
+        names = {tool.name for tool in kwargs_of(agent)["tools"]}
+
+        assert SEMANTIC_SEARCH_TOOL_NAME in names
+        assert system_prompt_of(agent) == "Just do it."
 
 
 class TestPassThrough:
