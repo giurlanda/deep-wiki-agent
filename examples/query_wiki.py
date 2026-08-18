@@ -11,7 +11,9 @@ return the not-found sentence rather than answering from model knowledge.
 from __future__ import annotations
 
 from pathlib import Path
+
 from debug_middleware import DebugMiddleware
+
 from deep_wiki_agent import create_deep_wiki_agent
 
 MODEL = "anthropic:claude-sonnet-5"

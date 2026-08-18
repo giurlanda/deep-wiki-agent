@@ -11,10 +11,11 @@ lets the manager agent build the bundle around it.
 from __future__ import annotations
 
 from pathlib import Path
+
 from debug_middleware import DebugMiddleware
-from deep_wiki_agent.tools.documents import create_read_document_tool
 
 from deep_wiki_agent import create_wiki_manager_agent
+from deep_wiki_agent.tools.documents import create_read_document_tool
 
 MODEL = "anthropic:claude-sonnet-5"
 WIKI = Path(__file__).parent / "contracts-wiki"
@@ -53,9 +54,9 @@ def main() -> None:
                 {
                     "role": "user",
                     "content": (
-                        "Bootstrap this wiki for supplier contracts (default categories, unsupervised ingest), then "
-                        "ingest raw/contract-acme-2026.md. Run the linter when "
-                        "you are done."
+                        "Bootstrap this wiki for supplier contracts (default "
+                        "categories, unsupervised ingest), then ingest "
+                        "raw/contract-acme-2026.md. Run the linter when you are done."
                     ),
                 }
             ]

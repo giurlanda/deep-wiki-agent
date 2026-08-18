@@ -14,11 +14,11 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
+
 from debug_middleware import DebugMiddleware
-from deep_wiki_agent.tools.documents import create_read_document_tool
 
 from deep_wiki_agent import create_deep_wiki_agent, create_wiki_manager_agent
-from langchain_openai import ChatOpenAI
+from deep_wiki_agent.tools.documents import create_read_document_tool
 
 MODEL = "anthropic:claude-sonnet-5"
 

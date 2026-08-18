@@ -19,11 +19,11 @@ documents to ingest.
 
 from __future__ import annotations
 
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 from debug_middleware import DebugMiddleware
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
@@ -85,7 +85,7 @@ def build_store(embeddings: OpenAIEmbeddings) -> QdrantVectorStore:
 
 def main() -> None:
     (WIKI / "raw").mkdir(parents=True, exist_ok=True)
-    
+
     for source_file in SOURCE.iterdir():
         if source_file.is_file():
             shutil.copy2(source_file, WIKI / "raw" / source_file.name)
