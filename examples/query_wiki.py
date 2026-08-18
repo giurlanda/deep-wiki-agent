@@ -11,7 +11,7 @@ return the not-found sentence rather than answering from model knowledge.
 from __future__ import annotations
 
 from pathlib import Path
-
+from debug_middleware import DebugMiddleware
 from deep_wiki_agent import create_deep_wiki_agent
 
 MODEL = "anthropic:claude-sonnet-5"
@@ -28,7 +28,9 @@ def main() -> None:
         msg = f"{WIKI} does not exist — run examples/build_wiki.py first"
         raise SystemExit(msg)
 
-    agent = create_deep_wiki_agent(model=MODEL, wiki_path=WIKI)
+    agent = create_deep_wiki_agent(
+        model=MODEL, wiki_path=WIKI, middleware=[DebugMiddleware()]
+    )
 
     for i, question in enumerate(QUESTIONS):
         result = agent.invoke(

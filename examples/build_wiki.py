@@ -11,6 +11,8 @@ lets the manager agent build the bundle around it.
 from __future__ import annotations
 
 from pathlib import Path
+from debug_middleware import DebugMiddleware
+from deep_wiki_agent.tools.documents import create_read_document_tool
 
 from deep_wiki_agent import create_wiki_manager_agent
 
@@ -40,7 +42,10 @@ def main() -> None:
     (WIKI / "raw").mkdir(parents=True, exist_ok=True)
     (WIKI / "raw" / "contratto-acme-2026.md").write_text(SOURCE, encoding="utf-8")
 
-    agent = create_wiki_manager_agent(model=MODEL, wiki_path=WIKI)
+    agent = create_wiki_manager_agent(
+        model=MODEL, wiki_path=WIKI, middleware=[DebugMiddleware()],
+        tools=[create_read_document_tool(wiki_path=WIKI)]
+    )
 
     result = agent.invoke(
         {

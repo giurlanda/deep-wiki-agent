@@ -55,7 +55,7 @@ class DebugMiddleware(AgentMiddleware):
         return f"{color.value if color else self._color.value}{text}{_ANSI_RESET}"
 
     def before_agent(
-        self, state: AgentState[Any], _runtime: Runtime[None]
+        self, state: AgentState[Any], runtime: Runtime[None]
     ) -> dict[str, Any] | None:
         last = state["messages"][-1]
         print(
@@ -66,7 +66,7 @@ class DebugMiddleware(AgentMiddleware):
         )
 
     def after_agent(
-        self, state: AgentState[Any], _runtime: Runtime[None]
+        self, state: AgentState[Any], runtime: Runtime[None]
     ) -> dict[str, Any] | None:
         last = state["messages"][-1]
         print(
@@ -76,7 +76,7 @@ class DebugMiddleware(AgentMiddleware):
             )
         )
 
-    def after_model(self, state: dict[str, Any], _runtime: Runtime) -> None:
+    def after_model(self, state: dict[str, Any], runtime: Runtime) -> None:
         last = state["messages"][-1]
         print(
             self._colorize(
