@@ -23,7 +23,7 @@ from pathlib import Path
 import shutil
 
 from debug_middleware import DebugMiddleware
-from langchain_openai import OpenAIEmbeddings
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
@@ -36,7 +36,7 @@ from deep_wiki_agent import (
 from deep_wiki_agent.tools.documents import create_read_document_tool
 
 MODEL = "anthropic:claude-sonnet-5"
-WIKI = Path(__file__).parent / "contracts-wiki"
+WIKI = Path(__file__).parent / "semantic-wiki"
 SOURCE = Path(__file__).parent / "assets"
 
 COLLECTION = "semantic-wiki"
