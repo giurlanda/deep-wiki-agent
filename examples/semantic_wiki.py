@@ -37,7 +37,7 @@ QDRANT_URL = "http://localhost:6333"
 DENSE_VECTOR = "dense"
 SPARSE_VECTOR = "sparse"
 
-QUESTION = "Quali obblighi di riservatezza sono previsti dal contratto Acme?"
+QUESTION = "What confidentiality obligations are set out in the Acme contract?"
 
 
 def build_store(embeddings: OpenAIEmbeddings) -> QdrantVectorStore:

@@ -18,8 +18,8 @@ MODEL = "anthropic:claude-sonnet-5"
 WIKI = Path(__file__).parent / "contracts-wiki"
 
 QUESTIONS = [
-    "Qual e' il preavviso di disdetta previsto dal contratto Acme?",
-    "Qual e' stato il fatturato di Acme nel 2025?",
+    "What is the termination notice period under the Acme contract?",
+    "What was Acme's revenue in 2025?",
 ]
 
 

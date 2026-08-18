@@ -20,27 +20,27 @@ MODEL = "anthropic:claude-sonnet-5"
 WIKI = Path(__file__).parent / "contracts-wiki"
 
 SOURCE = """\
-# Fornitura software - Acme S.p.A. / Contoso Srl
+# Software Supply Agreement - Acme S.p.A. / Contoso Srl
 
-Data: 12 marzo 2026
+Date: March 12, 2026
 
-## Art. 3 - Durata
-Il contratto ha durata di 24 mesi a partire dal 1 aprile 2026, con rinnovo
-tacito salvo disdetta.
+## Art. 3 - Term
+The agreement has a term of 24 months starting April 1, 2026, with automatic
+renewal unless terminated.
 
-## Art. 4 - Disdetta
-La disdetta deve pervenire con preavviso di 90 giorni rispetto alla scadenza,
-a mezzo PEC.
+## Art. 4 - Termination
+Notice of termination must be given at least 90 days before the expiry date,
+via certified email (PEC).
 
-## Art. 7 - Livelli di servizio
-Disponibilita' garantita del 99,5% su base mensile. Penale del 5% del canone
-mensile per ogni punto percentuale sotto la soglia.
+## Art. 7 - Service levels
+Guaranteed availability of 99.5% on a monthly basis. Penalty of 5% of the
+monthly fee for each percentage point below the threshold.
 """
 
 
 def main() -> None:
     (WIKI / "raw").mkdir(parents=True, exist_ok=True)
-    (WIKI / "raw" / "contratto-acme-2026.md").write_text(SOURCE, encoding="utf-8")
+    (WIKI / "raw" / "contract-acme-2026.md").write_text(SOURCE, encoding="utf-8")
 
     agent = create_wiki_manager_agent(
         model=MODEL, wiki_path=WIKI, middleware=[DebugMiddleware()],
@@ -53,9 +53,8 @@ def main() -> None:
                 {
                     "role": "user",
                     "content": (
-                        "Bootstrap this wiki for supplier contracts (Italian "
-                        "pages, default categories, unsupervised ingest), then "
-                        "ingest raw/contratto-acme-2026.md. Run the linter when "
+                        "Bootstrap this wiki for supplier contracts (default categories, unsupervised ingest), then "
+                        "ingest raw/contract-acme-2026.md. Run the linter when "
                         "you are done."
                     ),
                 }
