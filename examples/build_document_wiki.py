@@ -40,8 +40,10 @@ def main() -> None:
             shutil.copy2(source_file, WIKI / "raw" / source_file.name)
 
     manager = create_wiki_manager_agent(
-        model=MODEL, wiki_path=WIKI, middleware=[DebugMiddleware()],
-        tools=[create_read_document_tool(wiki_path=WIKI)]
+        model=MODEL,
+        wiki_path=WIKI,
+        middleware=[DebugMiddleware()],
+        tools=[create_read_document_tool(wiki_path=WIKI)],
     )
 
     result = manager.invoke(

@@ -44,8 +44,10 @@ def main() -> None:
     (WIKI / "raw" / "contract-acme-2026.md").write_text(SOURCE, encoding="utf-8")
 
     agent = create_wiki_manager_agent(
-        model=MODEL, wiki_path=WIKI, middleware=[DebugMiddleware()],
-        tools=[create_read_document_tool(wiki_path=WIKI)]
+        model=MODEL,
+        wiki_path=WIKI,
+        middleware=[DebugMiddleware()],
+        tools=[create_read_document_tool(wiki_path=WIKI)],
     )
 
     result = agent.invoke(
