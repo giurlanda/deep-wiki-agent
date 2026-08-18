@@ -80,6 +80,32 @@ def store_backend() -> StoreBackend:
 
 
 @pytest.fixture
+def embeddings():
+    """A deterministic stand-in for a real embedding model.
+
+    Hashes text into a fixed-width vector, so the same page always embeds to
+    the same point and no test needs a provider, a network, or a GPU. Nothing
+    here asserts on semantic proximity — that is the model's job, not the
+    index's.
+    """
+    from langchain_core.embeddings import DeterministicFakeEmbedding
+
+    return DeterministicFakeEmbedding(size=32)
+
+
+@pytest.fixture
+def vector_store(embeddings):
+    """An in-memory vector store, which supports ids and deletion.
+
+    Both matter here: the incremental ingest identifies chunks by id and
+    removes the ones a rewritten or deleted page left behind.
+    """
+    from langchain_core.vectorstores import InMemoryVectorStore
+
+    return InMemoryVectorStore(embeddings)
+
+
+@pytest.fixture
 def model() -> str:
     """A model identifier that is never actually called.
 

@@ -36,6 +36,8 @@ from deep_wiki_agent.prompts import (
     LINT_TOOL_BLOCK,
     MANAGER_SYSTEM_PROMPT_TEMPLATE,
     READER_SYSTEM_PROMPT_TEMPLATE,
+    SEMANTIC_MANAGER_BLOCK,
+    SEMANTIC_READER_BLOCK,
     STRUCTURED_OUTPUT_BLOCK_TEMPLATE,
 )
 
@@ -46,12 +48,16 @@ READER = "reader"
 # cites a bundle path of its own, and this module is what proves it resolves.
 PROMPTS = {
     MANAGER: MANAGER_SYSTEM_PROMPT_TEMPLATE.format(
-        wiki_root=WIKI_ROOT, raw_dir=RAW_DIR, lint_block=LINT_TOOL_BLOCK
+        wiki_root=WIKI_ROOT,
+        raw_dir=RAW_DIR,
+        lint_block=LINT_TOOL_BLOCK,
+        semantic_block=SEMANTIC_MANAGER_BLOCK,
     ),
     READER: READER_SYSTEM_PROMPT_TEMPLATE.format(
         wiki_root=WIKI_ROOT,
         raw_dir=RAW_DIR,
         not_found_message="Not found.",
+        semantic_block=SEMANTIC_READER_BLOCK,
         structured_output_block=STRUCTURED_OUTPUT_BLOCK_TEMPLATE.format(
             wiki_root=WIKI_ROOT, raw_dir=RAW_DIR
         ),

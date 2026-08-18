@@ -5,6 +5,66 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-08-09
+
+### Added
+
+- **Optional semantic + keyword search over a bundle, behind the new `semantic`
+  extra.** The indexes and the link graph remain the primary route through a
+  bundle, and up to a few hundred pages they replace embedding retrieval
+  outright — past that they degrade, and this is the second entry point.
+  `pip install "deep-wiki-agent[semantic]"` brings `langchain-text-splitters`
+  and includes the `documents` extra, since ingestion has to read whatever sits
+  in `raw/`. No vector store is pinned: pass any LangChain `VectorStore`.
+- **`embeddings`, `vector_store`, `search_k` and `semantic_config` on both
+  factories.** Given an embedding model and a store,
+  `create_wiki_manager_agent` gains `semantic_ingest` and `semantic_search`,
+  and `create_deep_wiki_agent` gains `semantic_search` alone — the ingestion
+  tool writes, and the reader is read-only by construction, which the
+  filesystem permissions cannot enforce for a tool that talks to a vector store
+  rather than to files. Passing only one of `embeddings` and `vector_store`
+  raises, rather than half-configuring an index that would fail on the model's
+  first tool call.
+- **`create_semantic_tools(embeddings, vector_store, *, wiki_path=None,
+  backend=None, search_k=5, config=None)`** — the two tools and the
+  `SemanticIndex` behind them, for wiring them yourself.
+  **`ingest_semantic_index(...)`** is the same ingestion code path with no
+  agent in it, for a cron job, a post-commit hook or a deploy step: an index
+  that only refreshes when a model decides to call a tool is not one you can
+  depend on.
+- **Two new system-prompt sections, `SEMANTIC_MANAGER_BLOCK` and
+  `SEMANTIC_READER_BLOCK`,** substituted into the templates' new
+  `{semantic_block}` placeholder when the tools are attached, exactly as
+  `lint_block` and `structured_output_block` already worked. The reader's block
+  amends the query protocol rather than replacing it: a hit is an entry point,
+  the page it points at is opened and read in full, citations name the page and
+  never the excerpt, and an empty search is not on its own a "not found".
+- **Incremental ingestion.** A small JSON manifest under `.okf/` — invisible to
+  `okf_lint`, which walks `**/*.md` — records each file's digest and the ids
+  its chunks were stored under. A second ingest skips unchanged files, updates
+  a rewritten page's chunks instead of duplicating them, and deletes the chunks
+  of a page that shrank or disappeared. A missing or corrupt manifest costs a
+  full re-ingest, never an error.
+- **Non-markdown sources are indexed too.** PDF, docx, csv, xlsx, pptx, html
+  and the rest go through the same `markitdown` conversion `read_document`
+  performs — reused by import, not reimplemented — so the sources under `raw/`
+  are searchable alongside the wiki's own pages, distinguished by an `area`
+  metadata field the search can filter on.
+- `examples/semantic_wiki.py`, showing deterministic ingestion followed by a
+  reader query against a hybrid Qdrant collection, and the `examples` extra
+  gained `langchain-qdrant`, `qdrant-client` and `fastembed` to run it.
+
+### Changed
+
+- **`MANAGER_SYSTEM_PROMPT_TEMPLATE` and `READER_SYSTEM_PROMPT_TEMPLATE` take a
+  new `semantic_block` placeholder.** Code that renders the templates by hand
+  must pass it — an empty string reproduces the previous output exactly.
+- `_normalize` and `_confine` moved out of `tools/documents.py` into a shared
+  `_paths.py` (as `normalize`, `confine`, and a new non-raising `within`), so
+  the semantic indexer confines its patterns with the same lexical resolution
+  the document tool already used. `tools.documents._confine` still resolves to
+  the same function.
+
 ## [0.6.1] - 2026-07-30
 
 ### Fixed

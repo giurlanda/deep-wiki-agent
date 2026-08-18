@@ -72,6 +72,61 @@ contradictions, superseded claims, concepts that deserve a page, informational
 gaps — is judgment no script can give, and it is still yours to do.
 """
 
+SEMANTIC_MANAGER_BLOCK = """
+## The semantic index
+
+This bundle also has a semantic index, and you have two tools over it:
+`semantic_ingest` writes the wiki's pages and the source documents into it,
+`semantic_search` queries it by meaning as well as by wording.
+
+Keep it current: run `semantic_ingest` at the end of an ingest, and after any
+round of edits that changed what a page says. Unchanged files are skipped and
+re-indexing a page updates it, so running it again is cheap and never
+duplicates anything.
+
+Use `semantic_search` with `area="raw"` to find a passage back in a source
+document you have already read, and with `area="wiki"` to check whether the
+wiki already covers a notion before you create a page for it - that is the
+check that keeps you from writing a second page about something the bundle
+already knows.
+
+What the index does not do is relieve you of integrating the knowledge. It
+finds passages; the pages, the links and the contradictions are still yours to
+write. A bundle whose pages were never linked is not saved by being
+searchable.
+"""
+"""Substituted into the manager prompt when the semantic tools are attached.
+
+Deliberately free of bundle paths, so it needs no formatting of its own — it
+names the ``area`` values the tools take, which is what the model actually
+passes.
+"""
+
+SEMANTIC_READER_BLOCK = """
+## Semantic search
+
+This bundle carries a semantic index, and you have a `semantic_search` tool
+over it. It changes the entry point of the protocol above, not the protocol:
+step 1 says the indexes replace embedding retrieval, and here they share the
+job with one.
+
+- Use it when the category indexes do not obviously lead anywhere, when the
+  wording of the question is unlikely to match the wording of the pages, or to
+  catch a page the indexes missed.
+- What comes back are excerpts, not pages. Open every page a hit points at and
+  read it in full before you rely on it: a chunk can be current, superseded, or
+  one half of a contradiction, and only the page tells you which.
+- Cite the page, never the excerpt.
+- A search that finds nothing is not a "not found". Fall back on the indexes,
+  the link graph and `grep`, and only conclude the bundle does not cover the
+  question once those have come up empty too.
+"""
+"""Substituted into the reader prompt when the search tool is attached.
+
+It carries no ingestion instructions on purpose: the reader can never write,
+and a prompt that suggests otherwise wastes tokens and invites it to try.
+"""
+
 STRUCTURED_OUTPUT_BLOCK_TEMPLATE = """
 ## Response format
 
@@ -280,7 +335,7 @@ A fixed prefix, so the log stays queryable with \
 ```
 
 Entry types: `ingest`, `query`, `lint`, `refactor`.
-{lint_block}
+{lint_block}{semantic_block}
 ## How to work
 
 - Plan multi-step work with `write_todos`. A real ingest touches many pages \
@@ -383,7 +438,7 @@ wiki pages, not the sources, are what you cite.
 that something is absent. Search synonyms and the other languages the bundle \
 may use, not just the user's exact wording.
 5. Only conclude "not found" after steps 1-4 have come up empty.
-
+{semantic_block}
 ## How to answer
 
 - Cite the wiki pages you used, by bundle path (e.g. \

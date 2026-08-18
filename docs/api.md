@@ -51,6 +51,35 @@ conversion attempt raises `ImportError` with the install command.
 
 ::: deep_wiki_agent.tools.documents.read_document
 
+## Semantic search
+
+All of the following require the optional `semantic` extra
+(`pip install "deep-wiki-agent[semantic]"`), which brings
+`langchain-text-splitters` and includes the `documents` extra — ingestion has
+to read whatever sits in `raw/`, and a PDF there is the common case. No vector
+store is pinned: pass any LangChain `VectorStore`.
+
+Enabling it is a matter of handing `embeddings` and `vector_store` to either
+factory. The manager then gets `semantic_ingest` and `semantic_search`; the
+reader gets `semantic_search` alone, since the ingestion tool writes and that
+agent is read-only by construction. Both gain the prompt section that explains
+their half — for the reader, that a hit is an entry point rather than an
+answer, and that citations name the page and never the excerpt.
+
+::: deep_wiki_agent.semantic.tools.create_semantic_tools
+
+::: deep_wiki_agent.semantic.tools.ingest_semantic_index
+
+::: deep_wiki_agent.semantic.tools.SemanticTools
+
+::: deep_wiki_agent.semantic.index.SemanticConfig
+
+::: deep_wiki_agent.semantic.index.IngestReport
+
+::: deep_wiki_agent.semantic.chunking.ChunkingConfig
+
+::: deep_wiki_agent.semantic.index.SemanticIndex
+
 ## Constants
 
 | Name | Value | Meaning |
@@ -93,14 +122,16 @@ rewriting from scratch. They are `str.format` templates:
 
 | Template | Placeholders |
 |---|---|
-| `MANAGER_SYSTEM_PROMPT_TEMPLATE` | `wiki_root`, `raw_dir`, `lint_block` |
-| `READER_SYSTEM_PROMPT_TEMPLATE` | `wiki_root`, `raw_dir`, `not_found_message`, `structured_output_block` |
+| `MANAGER_SYSTEM_PROMPT_TEMPLATE` | `wiki_root`, `raw_dir`, `lint_block`, `semantic_block` |
+| `READER_SYSTEM_PROMPT_TEMPLATE` | `wiki_root`, `raw_dir`, `not_found_message`, `semantic_block`, `structured_output_block` |
 
 `lint_block` is filled with `LINT_TOOL_BLOCK` when the `okf_lint` tool is
-attached, and with an empty string otherwise. `structured_output_block` works
-the same way: `STRUCTURED_OUTPUT_BLOCK_TEMPLATE` when `structured_output=True`,
-an empty string otherwise. Both blocks are plain strings, so an omitted one
-costs the agent nothing.
+attached, and with an empty string otherwise. `semantic_block` and
+`structured_output_block` work the same way: `SEMANTIC_MANAGER_BLOCK` /
+`SEMANTIC_READER_BLOCK` when semantic search is enabled, and
+`STRUCTURED_OUTPUT_BLOCK_TEMPLATE` when `structured_output=True`, empty strings
+otherwise. The blocks are plain strings, so an omitted one costs the agent
+nothing.
 
 `STRUCTURED_OUTPUT_BLOCK_TEMPLATE` is itself a `str.format` template taking
 `wiki_root` and `raw_dir` — render it before substituting it in, since

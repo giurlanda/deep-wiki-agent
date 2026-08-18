@@ -33,8 +33,18 @@ from deep_wiki_agent.prompts import (
     DEFAULT_NOT_FOUND_MESSAGE,
     MANAGER_SYSTEM_PROMPT_TEMPLATE,
     READER_SYSTEM_PROMPT_TEMPLATE,
+    SEMANTIC_MANAGER_BLOCK,
+    SEMANTIC_READER_BLOCK,
 )
 from deep_wiki_agent.schemas import WikiAnswer
+from deep_wiki_agent.semantic import (
+    ChunkingConfig,
+    IngestReport,
+    SemanticConfig,
+    SemanticTools,
+    create_semantic_tools,
+    ingest_semantic_index,
+)
 from deep_wiki_agent.tools import (
     create_okf_lint_tool,
     create_read_document_tool,
@@ -42,7 +52,7 @@ from deep_wiki_agent.tools import (
     run_okf_lint,
 )
 
-__version__ = "0.6.1"
+__version__ = "0.7.0"
 
 __all__ = [
     "BUNDLE_SKELETON",
@@ -50,13 +60,21 @@ __all__ = [
     "MANAGER_SYSTEM_PROMPT_TEMPLATE",
     "RAW_DIR",
     "READER_SYSTEM_PROMPT_TEMPLATE",
+    "SEMANTIC_MANAGER_BLOCK",
+    "SEMANTIC_READER_BLOCK",
     "WIKI_ROOT",
+    "ChunkingConfig",
+    "IngestReport",
+    "SemanticConfig",
+    "SemanticTools",
     "WikiAnswer",
     "__version__",
     "create_deep_wiki_agent",
     "create_okf_lint_tool",
     "create_read_document_tool",
+    "create_semantic_tools",
     "create_wiki_manager_agent",
+    "ingest_semantic_index",
     "read_document",
     "read_only_permissions",
     "run_okf_lint",

@@ -30,6 +30,8 @@ from deep_wiki_agent.prompts import (
     LINT_TOOL_BLOCK,
     MANAGER_SYSTEM_PROMPT_TEMPLATE,
     READER_SYSTEM_PROMPT_TEMPLATE,
+    SEMANTIC_MANAGER_BLOCK,
+    SEMANTIC_READER_BLOCK,
     STRUCTURED_OUTPUT_BLOCK_TEMPLATE,
 )
 from deep_wiki_agent.schemas import WikiAnswer
@@ -41,10 +43,14 @@ if TYPE_CHECKING:
     from deepagents.backends.protocol import BackendProtocol
     from deepagents.middleware.filesystem import FilesystemPermission
     from langchain.agents.middleware.types import AgentMiddleware
+    from langchain_core.embeddings import Embeddings
     from langchain_core.language_models import BaseChatModel
     from langchain_core.messages import SystemMessage
     from langchain_core.tools import BaseTool
+    from langchain_core.vectorstores import VectorStore
     from langgraph.graph.state import CompiledStateGraph
+
+    from deep_wiki_agent.semantic import SemanticConfig, SemanticTools
 
 __all__ = ["create_deep_wiki_agent", "create_wiki_manager_agent"]
 
@@ -70,6 +76,57 @@ def _require_model(model: str | BaseChatModel | None, factory: str) -> None:
         raise ValueError(msg)
 
 
+def _build_semantic_tools(
+    *,
+    embeddings: Embeddings | None,
+    vector_store: VectorStore | None,
+    backend: BackendProtocol,
+    search_k: int,
+    semantic_config: SemanticConfig | None,
+) -> SemanticTools | None:
+    """Build the semantic tools, or nothing when semantic search is off.
+
+    Args:
+        embeddings: Caller-supplied embedding model, or ``None``.
+        vector_store: Caller-supplied vector store, or ``None``.
+        backend: The bundle's backend, captured by the tools so every read goes
+            through the same tree the agent's file tools see.
+        search_k: Default number of results a search returns.
+        semantic_config: Index configuration, or ``None`` for the defaults.
+
+    Returns:
+        The tools, or ``None`` when neither an embedding model nor a store was
+        given.
+
+    Raises:
+        ValueError: If exactly one of ``embeddings`` and ``vector_store`` is
+            given — a half-configured index would fail on the first tool call
+            instead of here.
+        ImportError: If the optional ``semantic`` extra is not installed.
+    """
+    if embeddings is None and vector_store is None:
+        return None
+    if embeddings is None or vector_store is None:
+        msg = (
+            "semantic search needs both `embeddings` and `vector_store`; "
+            f"got embeddings={embeddings is not None}, "
+            f"vector_store={vector_store is not None}"
+        )
+        raise ValueError(msg)
+
+    # Imported here, not at module scope: the extra is opt-in, and importing
+    # this module must stay free for users who never enable semantic search.
+    from deep_wiki_agent.semantic import create_semantic_tools  # noqa: PLC0415
+
+    return create_semantic_tools(
+        embeddings,
+        vector_store,
+        backend=backend,
+        search_k=search_k,
+        config=semantic_config,
+    )
+
+
 def create_wiki_manager_agent(
     *,
     model: str | BaseChatModel,
@@ -79,6 +136,10 @@ def create_wiki_manager_agent(
     protect_raw: bool = True,
     enable_lint_tool: bool = True,
     virtual_mode: bool = True,
+    embeddings: Embeddings | None = None,
+    vector_store: VectorStore | None = None,
+    search_k: int = 5,
+    semantic_config: SemanticConfig | None = None,
     system_prompt: str | SystemMessage | None = None,
     tools: Sequence[BaseTool] = (),
     permissions: list[FilesystemPermission] | None = None,
@@ -117,6 +178,18 @@ def create_wiki_manager_agent(
         virtual_mode: Confine the filesystem backend to the bundle directory,
             blocking ``../`` and ``~/`` escapes. Leave enabled unless you have
             a specific reason not to.
+        embeddings: Embedding model enabling semantic search. Given together
+            with ``vector_store``, the agent gains ``semantic_ingest`` and
+            ``semantic_search`` and a prompt section on keeping the index
+            current. Requires the optional ``semantic`` extra.
+        vector_store: Store the chunks are written to and searched in. A store
+            configured for hybrid retrieval (dense + BM25) keeps its keyword
+            half — the query reaches it as text rather than as a vector.
+        search_k: Default number of passages a semantic search returns.
+        semantic_config: Index configuration — chunking, which directories may
+            be indexed, batch sizes, the manifest location. Defaults to
+            :class:`~deep_wiki_agent.semantic.index.SemanticConfig`, which
+            indexes the wiki's pages and the sources under ``/raw``.
         system_prompt: Override for the built-in manager prompt. Overriding it
             replaces the OKF instructions wholesale, so restate whatever of
             them you still want in force; the rest of the wiring is unchanged.
@@ -135,8 +208,9 @@ def create_wiki_manager_agent(
         The compiled deep agent graph, ready for ``invoke`` / ``astream``.
 
     Raises:
-        ValueError: If ``model`` is missing, or if neither or both of
-            ``wiki_path`` and ``backend`` are given.
+        ValueError: If ``model`` is missing, if neither or both of
+            ``wiki_path`` and ``backend`` are given, or if only one of
+            ``embeddings`` and ``vector_store`` is given.
         FileNotFoundError: If ``wiki_path`` does not exist and
             ``create_if_missing`` is ``False``.
     """
@@ -152,13 +226,25 @@ def create_wiki_manager_agent(
     agent_tools: list[BaseTool] = list(tools)
     if enable_lint_tool:
         agent_tools.append(create_okf_lint_tool(backend=effective_backend))
-    lint_block = LINT_TOOL_BLOCK if len(agent_tools) > len(tools) else ""
+
+    semantic = _build_semantic_tools(
+        embeddings=embeddings,
+        vector_store=vector_store,
+        backend=effective_backend,
+        search_k=search_k,
+        semantic_config=semantic_config,
+    )
+    if semantic is not None:
+        # The manager is the agent that changes the bundle, so it is the one
+        # that has to keep the index current: it gets both halves.
+        agent_tools.extend(semantic.as_list())
 
     if system_prompt is None:
         system_prompt = MANAGER_SYSTEM_PROMPT_TEMPLATE.format(
             wiki_root=WIKI_ROOT,
             raw_dir=RAW_DIR,
-            lint_block=lint_block,
+            lint_block=LINT_TOOL_BLOCK if enable_lint_tool else "",
+            semantic_block=SEMANTIC_MANAGER_BLOCK if semantic is not None else "",
         )
 
     if permissions is None:
@@ -183,6 +269,10 @@ def create_deep_wiki_agent(
     not_found_message: str = DEFAULT_NOT_FOUND_MESSAGE,
     structured_output: bool = False,
     virtual_mode: bool = True,
+    embeddings: Embeddings | None = None,
+    vector_store: VectorStore | None = None,
+    search_k: int = 5,
+    semantic_config: SemanticConfig | None = None,
     system_prompt: str | SystemMessage | None = None,
     tools: Sequence[BaseTool] = (),
     permissions: list[FilesystemPermission] | None = None,
@@ -228,6 +318,19 @@ def create_deep_wiki_agent(
             with passing your own ``response_format``.
         virtual_mode: Confine the filesystem backend to the bundle directory,
             blocking ``../`` and ``~/`` escapes.
+        embeddings: Embedding model enabling semantic search. Given together
+            with ``vector_store``, the agent gains ``semantic_search`` — and
+            only that: the ingestion tool writes, and this agent is read-only
+            by construction. Building and refreshing the index is the manager's
+            job, or a job for
+            :func:`~deep_wiki_agent.semantic.tools.ingest_semantic_index`.
+            Requires the optional ``semantic`` extra.
+        vector_store: Store holding the index to search. Must be the one the
+            bundle was ingested into: this agent never writes to it.
+        search_k: Default number of passages a semantic search returns.
+        semantic_config: Index configuration. Only its search-side fields
+            matter here (``over_fetch``, ``snippet_chars``, ``filter_builder``);
+            the ingestion fields are unused, since this agent never ingests.
         system_prompt: Override for the built-in reader prompt. Note that the
             not-found contract, the query protocol and the field-filling
             instructions ``structured_output`` would add all live in that
@@ -250,8 +353,10 @@ def create_deep_wiki_agent(
 
     Raises:
         ValueError: If ``model`` is missing, if neither or both of
-            ``wiki_path`` and ``backend`` are given, or if ``structured_output``
-            is combined with an explicit ``response_format``.
+            ``wiki_path`` and ``backend`` are given, if only one of
+            ``embeddings`` and ``vector_store`` is given, or if
+            ``structured_output`` is combined with an explicit
+            ``response_format``.
         FileNotFoundError: If ``wiki_path`` does not exist.
     """
     _require_model(model, "create_deep_wiki_agent")
@@ -270,11 +375,26 @@ def create_deep_wiki_agent(
         create_if_missing=False,
     )
 
+    semantic = _build_semantic_tools(
+        embeddings=embeddings,
+        vector_store=vector_store,
+        backend=effective_backend,
+        search_k=search_k,
+        semantic_config=semantic_config,
+    )
+    agent_tools: list[BaseTool] = list(tools)
+    if semantic is not None:
+        # Search only: the ingestion tool writes, and the read-only contract is
+        # what this agent is for. The permissions would not stop it either —
+        # they police the file tools, not a tool that talks to a vector store.
+        agent_tools.append(semantic.search_tool)
+
     if system_prompt is None:
         system_prompt = READER_SYSTEM_PROMPT_TEMPLATE.format(
             wiki_root=WIKI_ROOT,
             raw_dir=RAW_DIR,
             not_found_message=not_found_message,
+            semantic_block=SEMANTIC_READER_BLOCK if semantic is not None else "",
             structured_output_block=(
                 STRUCTURED_OUTPUT_BLOCK_TEMPLATE.format(
                     wiki_root=WIKI_ROOT, raw_dir=RAW_DIR
@@ -289,7 +409,7 @@ def create_deep_wiki_agent(
 
     return create_deep_agent(
         model=model,
-        tools=list(tools),
+        tools=agent_tools,
         system_prompt=system_prompt,
         backend=effective_backend,
         permissions=(read_only_permissions() if permissions is None else permissions),

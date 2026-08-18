@@ -16,8 +16,10 @@ export ANTHROPIC_API_KEY=...
 ```
 
 To ingest PDFs and other binary formats, add the optional `documents` extra —
-see [Ingest PDFs, docx, web pages](#ingest-pdfs-docx-web-pages). The core
-install stays free of loader dependencies.
+see [Ingest PDFs, docx, web pages](#ingest-pdfs-docx-web-pages). For semantic
+search over a large bundle add `semantic` instead, which includes `documents` —
+see [Search a large bundle by meaning](#search-a-large-bundle-by-meaning). The
+core install stays free of loader and retrieval dependencies.
 
 ## Build a wiki
 
@@ -210,6 +212,91 @@ markdown = read_document("paper.pdf", wiki_path="./my-wiki")
     a domain-specific parser, an OCR pass, a URL fetcher. Anything you pass in
     `tools=` is handed straight to the agent, alongside or instead of
     `read_document`.
+
+## Search a large bundle by meaning
+
+The indexes and the link graph are the primary route through a bundle, and at
+moderate scale they replace embedding retrieval outright. Past a few hundred
+pages that stops being true: the category indexes get long, and a page nobody
+linked from the right place stops being findable. The `semantic` extra adds a
+second entry point without changing the format — the index lives outside the
+bundle and is rebuildable from it at any time.
+
+```bash
+pip install "deep-wiki-agent[semantic]"
+```
+
+Give either factory an embedding model and a vector store, and the tools appear
+together with the prompt section explaining them:
+
+```python
+from langchain_openai import OpenAIEmbeddings
+from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode
+
+from deep_wiki_agent import create_deep_wiki_agent, create_wiki_manager_agent
+
+embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+store = QdrantVectorStore.from_existing_collection(
+    collection_name="my-wiki",
+    url="http://localhost:6333",
+    embedding=embeddings,
+    sparse_embedding=FastEmbedSparse(model_name="Qdrant/bm25"),
+    retrieval_mode=RetrievalMode.HYBRID,   # dense + BM25 keyword
+    vector_name="dense",
+    sparse_vector_name="sparse",
+)
+
+manager = create_wiki_manager_agent(
+    model="anthropic:claude-sonnet-5",
+    wiki_path="./my-wiki",
+    embeddings=embeddings,
+    vector_store=store,
+)
+reader = create_deep_wiki_agent(
+    model="anthropic:claude-sonnet-5",
+    wiki_path="./my-wiki",
+    embeddings=embeddings,
+    vector_store=store,
+    search_k=8,
+)
+```
+
+Any LangChain `VectorStore` works; the extra pins none. A store in hybrid mode
+keeps its keyword half — the query is handed to it as text rather than as a
+vector, which is what would otherwise turn BM25 off without saying so.
+
+The manager gets `semantic_ingest` and `semantic_search`; the reader gets only
+`semantic_search`. That asymmetry is structural, not a matter of prompting: the
+ingestion tool writes, and the reader is read-only over the bundle by
+construction.
+
+!!! warning
+    A hit is an entry point, not an answer. The reader's prompt section says so
+    — open the page a hit points at, read it in full, and cite the page rather
+    than the excerpt. A chunk can be current, superseded, or one half of a
+    contradiction, and only the page tells you which.
+
+Ingestion covers the wiki's pages and the sources under `raw/` (converted
+through markitdown, so PDF, docx, csv and the rest are included), reading
+through the backend rather than the local filesystem. Running it again is
+cheap: unchanged files are skipped, a rewritten page updates its chunks instead
+of duplicating them, and the chunks of a page that shrank or was deleted are
+removed. A small manifest under `.okf/` records what was indexed.
+
+To build or refresh the index without an agent — a cron job, a post-commit
+hook, a deployment step:
+
+```python
+from deep_wiki_agent import ingest_semantic_index
+
+report = ingest_semantic_index(embeddings, store, wiki_path="./my-wiki")
+print(report.summary())
+```
+
+`SemanticConfig` carries everything the model does not get to choose: chunk
+sizes, which directories may be indexed, batch sizes, an optional
+`filter_builder` for your store's native server-side filters, and where the
+manifest lives.
 
 ## Require approval before writes
 

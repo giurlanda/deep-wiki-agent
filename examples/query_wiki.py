@@ -12,14 +12,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from debug_middleware import DebugMiddleware
+
 from deep_wiki_agent import create_deep_wiki_agent
 
 MODEL = "anthropic:claude-sonnet-5"
 WIKI = Path(__file__).parent / "contracts-wiki"
 
 QUESTIONS = [
-    "Qual e' il preavviso di disdetta previsto dal contratto Acme?",
-    "Qual e' stato il fatturato di Acme nel 2025?",
+    "What is the termination notice period under the Acme contract?",
+    "What was Acme's revenue in 2025?",
 ]
 
 
@@ -28,7 +30,9 @@ def main() -> None:
         msg = f"{WIKI} does not exist — run examples/build_wiki.py first"
         raise SystemExit(msg)
 
-    agent = create_deep_wiki_agent(model=MODEL, wiki_path=WIKI)
+    agent = create_deep_wiki_agent(
+        model=MODEL, wiki_path=WIKI, middleware=[DebugMiddleware()]
+    )
 
     for i, question in enumerate(QUESTIONS):
         result = agent.invoke(

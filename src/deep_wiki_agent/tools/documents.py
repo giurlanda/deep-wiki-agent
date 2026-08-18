@@ -31,6 +31,8 @@ from typing import TYPE_CHECKING
 from deepagents.backends import FilesystemBackend
 from langchain_core.tools import StructuredTool
 
+from deep_wiki_agent._paths import confine as _confine
+from deep_wiki_agent._paths import normalize as _normalize
 from deep_wiki_agent.backends import RAW_DIR
 
 if TYPE_CHECKING:
@@ -55,68 +57,6 @@ _MISSING_DEPENDENCY_HINT = (
     'install it with `pip install "deep-wiki-agent[documents]"` '
     '(or `uv add "deep-wiki-agent[documents]"`).'
 )
-
-
-def _normalize(path: str) -> str:
-    """Collapse ``.``/``..`` segments into an absolute virtual path.
-
-    Purely lexical: the virtual filesystem has no symlinks to resolve, and
-    resolving against the local filesystem would defeat the point of confining
-    the tool to the backend's tree.
-
-    Args:
-        path: A virtual path, absolute or relative.
-
-    Returns:
-        The path with redundant, current and parent segments removed, always
-        starting with ``/``. Parent segments at the root are dropped rather
-        than escaping it.
-    """
-    parts: list[str] = []
-    for part in path.strip().split("/"):
-        if part in {"", "."}:
-            continue
-        if part == "..":
-            if parts:
-                parts.pop()
-            continue
-        parts.append(part)
-    return "/" + "/".join(parts)
-
-
-def _confine(path: str, root: str) -> str:
-    """Resolve a model-supplied path against ``root`` and refuse to leave it.
-
-    Accepts the three spellings a model actually produces for the same file:
-    bare (``paper.pdf``), root-relative (``raw/paper.pdf``) and absolute
-    (``/raw/paper.pdf``).
-
-    Args:
-        path: The path as the model wrote it.
-        root: Directory the read is confined to, e.g. ``/raw``.
-
-    Returns:
-        An absolute virtual path inside ``root``.
-
-    Raises:
-        ValueError: If ``path`` is empty, or lands outside ``root`` — including
-            by way of ``..`` segments.
-    """
-    if not path.strip():
-        msg = "path is empty"
-        raise ValueError(msg)
-
-    prefix = _normalize(root)
-    candidates = [_normalize(path)]
-    if not path.strip().startswith("/"):
-        candidates.append(_normalize(f"{prefix}/{path}"))
-
-    for candidate in candidates:
-        if candidate.startswith(f"{prefix}/"):
-            return candidate
-
-    msg = f"{path!r} is outside {prefix}; only documents under {prefix} can be read"
-    raise ValueError(msg)
 
 
 def _resolve_backend(

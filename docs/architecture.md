@@ -219,6 +219,52 @@ Three design details, two of them borrowed from the lint tool:
 The tool is not attached by any factory: it is passed in `tools=`, like any
 other loader, since its dependency is not part of a default install.
 
+## The semantic index, and why it stays outside the bundle
+
+The format's claim is that at moderate scale a hand-written index beats
+embedding retrieval, and it holds — up to a point. Past a few hundred pages the
+category indexes get long and a page linked from the wrong place stops being
+reachable. The `semantic` extra adds a second entry point, under one
+constraint: **a bundle must not acquire a database**.
+
+So the vector store is the caller's, not the library's. Nothing is pinned, and
+nothing about the index is authoritative: it holds no fact the bundle does not,
+and deleting it costs a re-ingest and nothing else. What stays in the bundle is
+one small JSON manifest under `.okf/` — invisible to `okf_lint`, which walks
+`**/*.md` — recording each file's digest and the ids its chunks were stored
+under. That is what makes a second ingest cheap and, more importantly,
+*correct*: it is how a rewritten page updates instead of duplicating, and how
+the chunks of a page that shrank or was deleted are actually removed. An index
+that only ever grows eventually answers questions with pages that no longer
+exist.
+
+The rest follows the shape of the other two tools:
+
+- **Everything is read through the backend.** Markdown through `read`, other
+  formats through `download_files` and the same `markitdown` conversion
+  `read_document` performs — reused by import, not reimplemented. The index
+  therefore covers exactly the tree the agent's own file tools see.
+- **The bundle, the store and the model are captured in the closure**;
+  ingestion is confined to `ingest_roots` (`/wiki` and `/raw` by default). The
+  model chooses what to index and what to search for, never where to read from
+  or where to write to.
+- **The two agents get different halves.** The manager, which changes the
+  bundle, gets `semantic_ingest` and `semantic_search`; the reader gets search
+  alone. This one is not a prompt convention: the filesystem permissions police
+  the file tools, not a tool that talks to a vector store, so a read-only agent
+  stays read-only by not being handed the tool that writes.
+- **Both operations are plain Python too.** `ingest_semantic_index` is the same
+  code path without an agent, because an index that only refreshes when a model
+  decides to call a tool is not an index you can depend on.
+
+Chunking lives in its own module and touches none of the above: header-aware
+splitting, GFM tables lifted out as atomic chunks (a table cut by a
+character-count splitter loses its header row, and with it the meaning of its
+numbers), and the page path, section hierarchy and content type recorded in
+each chunk's metadata. That metadata is what lets an answer cite a page rather
+than an excerpt — if it is not attached at chunking time, no retrieval quality
+puts it back later.
+
 ## Module map
 
 | Module | Responsibility |
@@ -229,4 +275,8 @@ other loader, since its dependency is not part of a default install.
 | `okf_lint.py` | the OKF conformance validator (backend-agnostic), plus its shell entry point |
 | `tools/lint.py` | the `okf_lint` tool and its deepagents backend adapter |
 | `tools/documents.py` | the optional `read_document` tool: markitdown conversion over backend bytes |
+| `_paths.py` | virtual-path normalization and confinement, shared by the tools that read through a backend |
+| `semantic/chunking.py` | header-aware markdown chunking, tables as atomic chunks, provenance metadata |
+| `semantic/index.py` | ingestion, the incremental manifest, and hybrid-aware search |
+| `semantic/tools.py` | the optional `semantic_ingest` / `semantic_search` tools and their factory |
 | `skills/okf-wiki/` | the skill, at the repo root: not shipped, not mounted |
