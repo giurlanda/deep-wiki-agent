@@ -6,6 +6,8 @@
 
 LangChain [deepagents](https://github.com/langchain-ai/deepagents) that maintain and consult a wiki knowledge base in the [Open Knowledge Format (OKF)](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing).
 
+Full docs: **https://giurlanda.github.io/deep-wiki-agent/**
+
 An OKF bundle is a directory of markdown pages with YAML frontmatter, linked to each other into a graph. It is a *format*, not a platform: no database, no embeddings, no vendor. This library gives you two agents over such a bundle — one that writes it, one that reads it.
 
 ```python
