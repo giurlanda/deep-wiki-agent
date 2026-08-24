@@ -5,6 +5,17 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-08-24
+
+### Added
+
+- **CI now deploys the built MkDocs site to GitHub Pages** on every push to
+  `main`. The `docs` job still just builds (`mkdocs build --strict`) on PRs,
+  as before; a new `deploy-docs` job, gated to `main` pushes, publishes the
+  `site/` artifact via `actions/upload-pages-artifact` +
+  `actions/deploy-pages`, with the corresponding `pages: write` /
+  `id-token: write` permissions. README now links the published docs.
+
 ## [0.7.0] - 2026-08-09
 
 ### Added
