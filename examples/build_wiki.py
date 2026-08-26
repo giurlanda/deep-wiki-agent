@@ -13,10 +13,19 @@ from __future__ import annotations
 from pathlib import Path
 
 from debug_middleware import DebugMiddleware
-
 from deep_wiki_agent import create_wiki_manager_agent
 from deep_wiki_agent.tools.documents import create_read_document_tool
 
+# Local model configuration
+# MODEL = ChatOpenAI(
+#     model="qwen/qwen3.8-27b",
+#     base_url="http://127.0.0.1:1234/v1",
+#     api_key="no-api",
+#     temperature=0.1,
+#     timeout=240,
+#     max_retries=1,
+#     stream_usage=True,
+# )
 MODEL = "anthropic:claude-sonnet-5"
 WIKI = Path(__file__).parent / "contracts-wiki"
 
