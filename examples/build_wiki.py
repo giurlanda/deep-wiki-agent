@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from debug_middleware import DebugMiddleware
+
 from deep_wiki_agent import create_wiki_manager_agent
 from deep_wiki_agent.tools.documents import create_read_document_tool
 
