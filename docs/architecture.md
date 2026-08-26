@@ -81,6 +81,10 @@ Every write, everywhere. Reads are untouched, so `ls`, `read_file`, `glob` and
 reader to untrusted questions: a prompt-injected instruction to "update the
 wiki" fails at the tool boundary, not at the model's discretion.
 
+`"write"` covers every mutating tool, not just `write_file` — `deepagents` maps
+`edit_file` and `delete` onto the same operation, so the rule above needs no
+amendment as that tool set grows.
+
 Passing your own `permissions` replaces these rules entirely — including, for
 the reader, the read-only guarantee.
 

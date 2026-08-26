@@ -140,12 +140,15 @@ nothing.
 ```python
 from deep_wiki_agent import READER_SYSTEM_PROMPT_TEMPLATE
 
-prompt = READER_SYSTEM_PROMPT_TEMPLATE.format(
-    wiki_root="/",
-    raw_dir="/raw",
-    not_found_message="Nothing found in the knowledge base.",
-    structured_output_block="",
-) + "\n\nAlways answer in Italian."
+prompt = (
+    READER_SYSTEM_PROMPT_TEMPLATE.format(
+        wiki_root="/",
+        raw_dir="/raw",
+        not_found_message="Nothing found in the knowledge base.",
+        structured_output_block="",
+    )
+    + "\n\nAlways answer in Italian."
+)
 ```
 
 !!! warning

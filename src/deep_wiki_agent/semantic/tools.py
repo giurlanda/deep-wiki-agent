@@ -267,9 +267,11 @@ def create_semantic_tools(
         )
         if not results:
             return (
-                "No passage matched. Try different wording, widen `area`, or "
-                "drop the filters — and remember the index may not cover "
-                "everything the bundle holds.",
+                (
+                    "No passage matched. Try different wording, widen `area`, "
+                    "or drop the filters — and remember the index may not "
+                    "cover everything the bundle holds."
+                ),
                 [],
             )
         return _render(results, config.snippet_chars if config else 500), results

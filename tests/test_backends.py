@@ -36,8 +36,8 @@ class TestPermissions:
         assert write_protect_permissions([]) == []
 
 
-def _reader_write_tool(wiki_path) -> ToolNode:
-    """A ``write_file`` tool wired exactly as the reader agent gets it.
+def _reader_tool(wiki_path, name: str = "write_file") -> ToolNode:
+    """One mutating tool wired exactly as the reader agent gets it.
 
     Mounts the bundle at the virtual root behind ``FilesystemMiddleware`` with
     the reader's permission set, so the tool goes through the same permission
@@ -47,21 +47,22 @@ def _reader_write_tool(wiki_path) -> ToolNode:
     middleware = FilesystemMiddleware(
         backend=backend, _permissions=read_only_permissions()
     )
-    write_file = next(t for t in middleware.tools if t.name == "write_file")
-    return ToolNode([write_file])
+    tool = next(t for t in middleware.tools if t.name == name)
+    return ToolNode([tool])
 
 
 def _attempt_write(node: ToolNode, path: str):
     """Drive one ``write_file`` call through the middleware and return the result."""
+    return _attempt(
+        node, "write_file", {"file_path": path, "content": "prompt-injected"}
+    )
+
+
+def _attempt(node: ToolNode, name: str, args: dict):
+    """Drive one tool call through the middleware and return the result message."""
     call = AIMessage(
         content="",
-        tool_calls=[
-            {
-                "name": "write_file",
-                "args": {"file_path": path, "content": "prompt-injected"},
-                "id": "call-1",
-            }
-        ],
+        tool_calls=[{"name": name, "args": args, "id": "call-1"}],
     )
     result = node.invoke({"messages": [call]}, runtime=Runtime(context=None))
     return result["messages"][-1]
@@ -80,12 +81,36 @@ class TestReadOnlyEnforcement:
         ["/AGENTS.md", "/raw/x.md", "/index.md", "/concepts/margine-operativo.md"],
     )
     def test_every_write_is_rejected_by_the_middleware(self, wiki_path, path):
-        message = _attempt_write(_reader_write_tool(wiki_path), path)
+        message = _attempt_write(_reader_tool(wiki_path), path)
 
         assert message.status == "error"
         assert "permission denied for write" in message.content
 
     def test_a_denied_write_never_touches_disk(self, wiki_path):
-        _attempt_write(_reader_write_tool(wiki_path), "/AGENTS.md")
+        _attempt_write(_reader_tool(wiki_path), "/AGENTS.md")
 
         assert not (wiki_path / "AGENTS.md").exists()
+
+
+class TestDeleteIsCoveredByWritePermissions:
+    """``delete`` arrived with deepagents 0.7 and is classified as a write.
+
+    The permission sets name ``"write"`` only, so this pins the assumption the
+    read-only guarantee now rests on: a new mutating tool must not be a way
+    around it.
+    """
+
+    def test_read_only_rejects_delete(self, wiki_path):
+        node = _reader_tool(wiki_path, "delete")
+
+        message = _attempt(node, "delete", {"file_path": "/index.md"})
+
+        assert message.status == "error"
+        assert "permission denied for write" in message.content
+
+    def test_a_denied_delete_never_touches_disk(self, wiki_path):
+        node = _reader_tool(wiki_path, "delete")
+
+        _attempt(node, "delete", {"file_path": "/index.md"})
+
+        assert (wiki_path / "index.md").exists()
