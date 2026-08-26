@@ -122,7 +122,9 @@ ignore = [
 # fixture's dependencies next to it; private attribute access is the point of
 # the wiring assertions.
 "tests/*" = ["ANN", "D", "INP001", "PLC0415", "PLR2004", "S101", "SLF001", "TC"]
-"examples/*" = ["D", "INP001", "T201"]
+# Examples: the commented-out alternatives (local LM Studio endpoints) are
+# what an example is for — they show the other way to wire the same thing.
+"examples/*" = ["D", "ERA001", "INP001", "T201"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

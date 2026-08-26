@@ -5,6 +5,25 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.3] - 2026-08-26
+
+### Added
+
+- **The publish workflow accepts a `workflow_dispatch` trigger** taking an
+  existing tag as input. Until now it fired only on a `v*.*.*` tag push, so a
+  run that failed to start could only be retried by deleting and re-pushing the
+  tag. The dispatch path checks out the requested ref and validates its
+  `__version__` against the tag exactly as the push path does, and rejects an
+  input that is not a `vX.Y.Z` tag.
+
+### Fixed
+
+- **`ruff check` passes on `examples/` again.** The commented-out LM Studio
+  configurations added in 0.7.2 tripped `ERA001`, which is now ignored for
+  `examples/*`: in an example, the alternative wiring shown in a comment is the
+  content, not a leftover. An unsorted import block in `examples/build_wiki.py`
+  was reordered.
+
 ## [0.7.2] - 2026-08-26
 
 ### Changed
