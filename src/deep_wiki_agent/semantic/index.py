@@ -188,8 +188,10 @@ class IngestReport:
             else ""
         )
         parts = [
-            f"Indexed {self.chunks} chunk(s) from {self.files} file(s) "
-            f"({self.table_chunks} of them tables)."
+            (
+                f"Indexed {self.chunks} chunk(s) from {self.files} file(s) "
+                f"({self.table_chunks} of them tables)."
+            )
         ]
         if self.matched_files:
             parts.append(f"Files: {head}{more}.")

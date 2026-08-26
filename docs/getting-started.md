@@ -241,7 +241,7 @@ store = QdrantVectorStore.from_existing_collection(
     url="http://localhost:6333",
     embedding=embeddings,
     sparse_embedding=FastEmbedSparse(model_name="Qdrant/bm25"),
-    retrieval_mode=RetrievalMode.HYBRID,   # dense + BM25 keyword
+    retrieval_mode=RetrievalMode.HYBRID,  # dense + BM25 keyword
     vector_name="dense",
     sparse_vector_name="sparse",
 )
@@ -352,7 +352,11 @@ you what it needs. Ask the manager agent periodically:
 
 ```python
 manager.invoke(
-    {"messages": [{"role": "user", "content": "Lint the wiki and tell me what is missing."}]},
+    {
+        "messages": [
+            {"role": "user", "content": "Lint the wiki and tell me what is missing."}
+        ]
+    },
     config={"configurable": {"thread_id": "maintenance-1"}},
 )
 ```

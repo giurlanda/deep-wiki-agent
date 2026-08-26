@@ -19,11 +19,12 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    # Capped below 0.7: the linter is only attachable to a `FilesystemBackend`,
-    # which this package type-checks against directly. Lift the cap once that
-    # backend surface is stable across a minor release.
-    "deepagents>=0.6.5,<0.7",
-    "langchain>=1.0,<2.0",
+    # Floor at 0.7.8: `BackendProtocol` and `FilesystemBackend` expose the same
+    # operation set there (`delete` included), so the linter and the document
+    # tools type-check against the protocol rather than one concrete backend.
+    "deepagents>=0.7.8,<1.0",
+    # Floor tracks what deepagents itself requires; both move together.
+    "langchain>=1.3.17,<2.0",
     # Already in the tree through langchain; declared because `WikiAnswer` puts
     # a Pydantic model on this package's public API.
     "pydantic>=2.0,<3.0",
@@ -45,18 +46,19 @@ docs = [
     # Pinned below 2.0: MkDocs 2.0 removes the plugin system, which mkdocstrings
     # and mkdocs-material both depend on.
     "mkdocs>=1.6,<2.0",
-    "mkdocs-material>=9.5",
-    "mkdocstrings[python]>=0.26",
+    "mkdocs-material>=9.5,<10.0",
+    "mkdocstrings[python]>=0.26,<2.0",
 ]
 
 examples = [
     "langchain-openai>=1.0,<2.0",
-    "colorama",
+    "colorama>=0.4,<1.0",
     # For `examples/semantic_wiki.py`: one concrete hybrid store, so the
-    # example runs. The library itself pins no vector store.
-    "langchain-qdrant>=0.2",
-    "qdrant-client>=1.12",
-    "fastembed>=0.4",
+    # example runs. The library itself pins no vector store. Floored at 1.0,
+    # the first release built against `langchain-core` 1.x.
+    "langchain-qdrant>=1.0,<2.0",
+    "qdrant-client>=1.12,<2.0",
+    "fastembed>=0.4,<1.0",
 ]
 
 # Opt-in loader stack for `create_read_document_tool`. Enumerated rather than
@@ -73,15 +75,15 @@ documents = [
 # decision, and the bundle stays a directory either way.
 semantic = [
     "deep-wiki-agent[documents]",
-    "langchain-text-splitters>=0.3,<2.0",
+    "langchain-text-splitters>=1.0,<2.0",
 ]
 
 [dependency-groups]
 dev = [
-    "pytest>=8.3",
-    "pytest-asyncio>=0.24",
-    "pyyaml>=6.0.3",
-    "ruff>=0.8",
+    "pytest>=8.3,<10.0",
+    "pytest-asyncio>=1.0,<2.0",
+    "pyyaml>=6.0.3,<7.0",
+    "ruff>=0.14,<1.0",
 ]
 
 [build-system]
@@ -108,9 +110,11 @@ select = ["ALL"]
 ignore = [
     "ANN401",  # Any is the right type for **kwargs passed straight through
     "COM812",  # conflicts with the formatter
+    "CPY001",  # licensing lives in LICENSE, not in a header on every file
     "D203",    # incompatible with D211
     "D213",    # incompatible with D212
     "PLR0913", # factories are configuration surfaces; many kwargs is the point
+    "PLR0917", # same: a tool's parameters are its schema, not a call-site smell
 ]
 
 [tool.ruff.lint.per-file-ignores]

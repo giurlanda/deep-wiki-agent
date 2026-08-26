@@ -5,7 +5,6 @@ then:
 
     docker run -p 6333:6333 qdrant/qdrant
     uv sync --extra semantic --extra examples
-    uv add langchain-qdrant qdrant-client fastembed
     export ANTHROPIC_API_KEY=... OPENAI_API_KEY=...
     uv run python examples/semantic_wiki.py
 
@@ -29,6 +28,16 @@ from qdrant_client.http import models as qmodels
 
 from deep_wiki_agent import create_deep_wiki_agent, ingest_semantic_index
 
+# Local model configuration
+# MODEL = ChatOpenAI(
+#     model="qwen/qwen3.8-27b",
+#     base_url="http://127.0.0.1:1234/v1",
+#     api_key="no-api",
+#     temperature=0.1,
+#     timeout=240,
+#     max_retries=1,
+#     stream_usage=True,
+# )
 MODEL = "anthropic:claude-sonnet-5"
 WIKI = Path(__file__).parent / "contracts-wiki"
 COLLECTION = "contracts-wiki"
@@ -77,6 +86,14 @@ def main() -> None:
         msg = f"{WIKI} does not exist — run examples/build_wiki.py first"
         raise SystemExit(msg)
 
+    # LM Studio's /v1/embeddings only accepts text; the LangChain client would
+    # otherwise pre-tokenise and send token-id arrays, which it rejects with 400.
+    # embeddings = OpenAIEmbeddings(
+    #     model="text-embedding-embeddinggemma-300m",
+    #     base_url="http://127.0.0.1:1234/v1",
+    #     api_key="no-api",
+    #     check_embedding_ctx_length=False,
+    # )
     embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
     store = build_store(embeddings)
 

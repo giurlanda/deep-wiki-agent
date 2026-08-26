@@ -123,7 +123,14 @@ reader = create_deep_wiki_agent(
 )
 
 answer = reader.invoke(
-    {"messages": [{"role": "user", "content": "What is the notice period in the Acme contract?"}]},
+    {
+        "messages": [
+            {
+                "role": "user",
+                "content": "What is the notice period in the Acme contract?",
+            }
+        ]
+    },
     config={"configurable": {"thread_id": "q-1"}},
 )
 ```
@@ -164,11 +171,11 @@ result = reader.invoke(
 
 answer: WikiAnswer = result["structured_response"]
 if not answer.found:
-    ...                      # the bundle covers none of the question
+    ...  # the bundle covers none of the question
 elif answer.not_covered:
-    ...                      # partial hit; `not_covered` names the gap
+    ...  # partial hit; `not_covered` names the gap
 for path in answer.citations:
-    ...                      # e.g. "/wiki/concepts/preavviso.md"
+    ...  # e.g. "/wiki/concepts/preavviso.md"
 ```
 
 | Field | Type | Meaning |
@@ -246,7 +253,7 @@ store = QdrantVectorStore.from_existing_collection(
     url="http://localhost:6333",
     embedding=embeddings,
     sparse_embedding=FastEmbedSparse(model_name="Qdrant/bm25"),
-    retrieval_mode=RetrievalMode.HYBRID,   # dense + BM25 keyword
+    retrieval_mode=RetrievalMode.HYBRID,  # dense + BM25 keyword
     vector_name="dense",
     sparse_vector_name="sparse",
 )
@@ -352,9 +359,12 @@ Start from the shipped template and extend it, rather than writing one from scra
 from deep_wiki_agent import MANAGER_SYSTEM_PROMPT_TEMPLATE
 from deep_wiki_agent.prompts import LINT_TOOL_BLOCK
 
-prompt = MANAGER_SYSTEM_PROMPT_TEMPLATE.format(
-    wiki_root="/", raw_dir="/raw", lint_block=LINT_TOOL_BLOCK
-) + "\n\nAlways write the pages in Italian."
+prompt = (
+    MANAGER_SYSTEM_PROMPT_TEMPLATE.format(
+        wiki_root="/", raw_dir="/raw", lint_block=LINT_TOOL_BLOCK
+    )
+    + "\n\nAlways write the pages in Italian."
+)
 
 manager = create_wiki_manager_agent(
     model="anthropic:claude-sonnet-5",

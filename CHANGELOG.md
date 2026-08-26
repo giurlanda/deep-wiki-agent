@@ -5,6 +5,33 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] - 2026-08-26
+
+### Changed
+
+- **`deepagents` raised to `>=0.7.8,<1.0`.** The old cap below `0.7` existed
+  because the OKF linter was only attachable to a `FilesystemBackend`; in
+  `0.7.x` `BackendProtocol` and `FilesystemBackend` expose the same operation
+  set, so the cap no longer bought anything. `langchain`'s floor moves to
+  `>=1.3.17` to match what `deepagents` itself requires.
+- **Every dependency group now carries a major-version ceiling**, and the
+  floors of `langchain-qdrant` (`>=1.0`) and `langchain-text-splitters`
+  (`>=1.0`) were raised to the first releases built against `langchain-core`
+  1.x — the older ones could resolve but not import alongside `langchain` 1.x.
+  `pytest-asyncio` moves to `>=1.0,<2.0`, `ruff` to `>=0.14,<1.0`.
+- **Lint configuration follows ruff 0.16**: `CPY001` (per-file copyright
+  headers) and `PLR0917` (positional-argument count on tool signatures) are
+  ignored for the same reasons `PLR0913` already was, three implicit string
+  concatenations inside collections were parenthesised for `ISC004`, and the
+  Python blocks inside `README.md` and the docs were reformatted, since
+  `ruff format` now covers Markdown.
+
+### Added
+
+- Regression tests pinning that the `delete` tool introduced in `deepagents`
+  0.7 is classified as a `write`, so the reader's read-only guarantee and the
+  manager's `raw/` protection cover it without changing either rule.
+
 ## [0.7.1] - 2026-08-24
 
 ### Added

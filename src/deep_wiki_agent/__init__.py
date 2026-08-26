@@ -52,7 +52,7 @@ from deep_wiki_agent.tools import (
     run_okf_lint,
 )
 
-__version__ = "0.7.1"
+__version__ = "0.7.2"
 
 __all__ = [
     "BUNDLE_SKELETON",
