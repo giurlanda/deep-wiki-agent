@@ -145,6 +145,28 @@ What the prompts own beyond the skill's content:
 | Where the bundle root is | prompt (`WIKI_ROOT`) | a property of the mount, not of the format |
 | The answer's shape | prompt + schema (`structured_output`) | how a caller consumes an answer is an integration concern; a human-facing skill has no equivalent |
 
+### `skills/okf-wiki-reader/`: the reader as a skill
+
+The reader's instructions are also packaged as a skill, for a host agent that
+should consult a bundle in its own loop rather than delegate to the agent
+`create_deep_wiki_agent` builds. Its content is `READER_SYSTEM_PROMPT_TEMPLATE`
+rendered for the fixed layout (pages under `/wiki/`, sources under `/raw/`,
+`DEFAULT_NOT_FOUND_MESSAGE`), without the semantic-search and structured-output
+blocks: both depend on a tool and a schema the factory wires in, which a
+harness loading a skill does not have.
+
+The direction of the source of truth is the opposite of `okf-wiki`'s: here the
+prompt leads and the skill follows. `tests/test_reader_skill.py` pins a
+checksum of the reader template, requires a marker phrase from each of its
+sections in the skill, and rejects write-side instructions and the left-out
+blocks; `tests/test_prompt_paths.py` checks the skill's paths and layout
+diagram against `BUNDLE_SKELETON` as it does the prompts'.
+
+What the skill cannot carry is the enforcement. The reader agent is read-only
+because `FilesystemMiddleware` denies writes; a skill can only say so. A host
+that holds write tools over the bundle must apply `read_only_permissions()`
+itself.
+
 ### Why the answer's shape is opt-in
 
 `structured_output=True` is the one place where a contract is stated twice: as
@@ -284,3 +306,4 @@ puts it back later.
 | `semantic/index.py` | ingestion, the incremental manifest, and hybrid-aware search |
 | `semantic/tools.py` | the optional `semantic_ingest` / `semantic_search` tools and their factory |
 | `skills/okf-wiki/` | the skill, at the repo root: not shipped, not mounted |
+| `skills/okf-wiki-reader/` | the reader prompt as a consultation skill: not shipped, not mounted |

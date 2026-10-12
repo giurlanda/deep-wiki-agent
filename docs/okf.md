@@ -229,3 +229,10 @@ The repository also keeps `skills/okf-wiki/SKILL.md` as the canonical
 human-facing statement of the format — usable in Claude Code and other
 skill-aware harnesses, and kept in step with the prompts by
 `tests/test_prompt_drift.py`. It is not part of the installed package.
+
+`skills/okf-wiki-reader/SKILL.md` is the reader prompt above, rendered for a
+bundle with its pages under `/wiki/` and its sources under `/raw/`, without the
+semantic-search and structured-output blocks. Load it into an agent you already
+run to consult a bundle without building the reader agent — keeping in mind
+that the skill only states the read-only rule, while the reader agent enforces
+it. `tests/test_reader_skill.py` keeps it in step with the prompt.
