@@ -60,6 +60,19 @@ The content is split by audience. The manager carries all of it. The reader carr
 
 `skills/okf-wiki/SKILL.md` stays in the repository as the canonical human-facing statement of the format, usable in Claude Code and other skill-aware harnesses. It is not shipped in the wheel and no agent reads it; `tests/test_prompt_drift.py` fails if it and the prompts drift apart.
 
+### Consulting a wiki through a skill instead of the reader agent
+
+`skills/okf-wiki-reader/SKILL.md` packages the reader's instructions — the closed-book rule, the bundle structure, how to read a page, the query protocol, how to answer — for an agent you already run. Mount the bundle with its pages under `/wiki/` and its sources under `/raw/`, give the agent the skill (Claude Code, or `create_deep_agent(skills=...)`), and it answers from the wiki in its own loop instead of delegating to a separate agent. Semantic search and `structured_output` are not part of the skill. `tests/test_reader_skill.py` fails when the reader prompt changes without the skill being revisited.
+
+| | `create_deep_wiki_agent` | `okf-wiki-reader` skill |
+|---|---|---|
+| Runs as | a dedicated agent | instructions loaded by your agent |
+| Read-only | **enforced** by the filesystem permissions | **stated** only — enforce it yourself |
+| Semantic search, `structured_output` | available | not included |
+| Bundle location | wherever `wiki_path` / `backend` points | fixed: `/wiki/` and `/raw/` |
+
+A skill can only ask for read-only behavior. If the host agent has write tools over the bundle, give it `read_only_permissions()` yourself (see [API](#api)), or use the reader agent when the guarantee matters.
+
 To change what an agent follows, pass `system_prompt=`.
 
 ### The virtual filesystem the agent sees

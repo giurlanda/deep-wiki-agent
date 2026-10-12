@@ -43,6 +43,9 @@ from deep_wiki_agent.prompts import (
 
 MANAGER = "manager"
 READER = "reader"
+READER_SKILL = "reader skill"
+
+READER_SKILL_MD = Path(__file__).parents[1] / "skills" / "okf-wiki-reader" / "SKILL.md"
 
 # The reader is rendered with its structured-output block included: that block
 # cites a bundle path of its own, and this module is what proves it resolves.
@@ -62,6 +65,7 @@ PROMPTS = {
             wiki_root=WIKI_ROOT, raw_dir=RAW_DIR
         ),
     ),
+    READER_SKILL: READER_SKILL_MD.read_text(encoding="utf-8"),
 }
 
 # A path written from the bundle root, e.g. `/wiki/index.md`. The `.` in the
@@ -91,8 +95,8 @@ landing there is an example slug rather than a mistake.
 def structure_block(prompt: str) -> str:
     """Return the layout diagram of the prompt's section 1.
 
-    It is the first fenced block of both prompts; the frontmatter and log
-    examples come later.
+    It is the first fenced block of both prompts and of the reader skill; the
+    frontmatter and log examples come later.
     """
     return prompt.split("```")[1]
 
@@ -153,12 +157,13 @@ class TestTheDiagramAgreesWithTheSkeleton:
         """The manager bootstraps the bundle, so it must draw all of it."""
         assert declared_paths(PROMPTS[MANAGER]) == set(BUNDLE_SKELETON)
 
-    def test_reader_declares_nothing_of_its_own(self):
+    @pytest.mark.parametrize("audience", [READER, READER_SKILL])
+    def test_reader_declares_nothing_of_its_own(self, audience):
         """The reader may omit what it never touches, but invent nothing."""
-        undeclared = declared_paths(PROMPTS[READER]) - set(BUNDLE_SKELETON)
+        undeclared = declared_paths(PROMPTS[audience]) - set(BUNDLE_SKELETON)
 
         assert not undeclared, (
-            f"the reader's layout diagram shows {sorted(undeclared)}, which "
+            f"the {audience}'s layout diagram shows {sorted(undeclared)}, which "
             "is not in BUNDLE_SKELETON"
         )
 

@@ -5,6 +5,27 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-10-12
+
+### Added
+
+- **`skills/okf-wiki-reader/SKILL.md`, the reader agent as a skill.** A host
+  agent that loads it can consult an OKF bundle mounted with its pages under
+  `/wiki/` and its sources under `/raw/` in its own loop, instead of
+  delegating to the agent `create_deep_wiki_agent` builds. It carries the
+  reader prompt's closed-book rule, bundle structure, page-reading rules, query
+  protocol and answering rules. Semantic search and `structured_output` stay
+  agent-only. The skill states the read-only rule but cannot enforce it: a host
+  with write tools over the bundle must apply `read_only_permissions()` itself.
+  Like `skills/okf-wiki/`, it lives at the repository root and is not shipped
+  in the wheel.
+- **`tests/test_reader_skill.py` keeps the skill in step with the reader
+  prompt.** It pins a checksum of `READER_SYSTEM_PROMPT_TEMPLATE`, requires a
+  marker phrase from each reader section, and rejects write-side instructions,
+  the left-out optional blocks and unrendered placeholders.
+  `tests/test_prompt_paths.py` now also checks the skill's paths and layout
+  diagram against `BUNDLE_SKELETON`.
+
 ## [0.7.3] - 2026-08-26
 
 ### Added

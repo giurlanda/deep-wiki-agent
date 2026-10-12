@@ -13,6 +13,10 @@ copied wholesale: the manager gets everything, the reader gets only what a
 process that can never write actually needs. ``tests/test_prompt_drift.py``
 fails when ``SKILL.md`` changes without these prompts being revisited.
 
+``skills/okf-wiki-reader/SKILL.md`` runs the other way: it is the reader prompt
+rendered as a consultation skill, and ``tests/test_reader_skill.py`` fails when
+``READER_SYSTEM_PROMPT_TEMPLATE`` changes without the skill being revisited.
+
 Templates are formatted with :meth:`str.format`; literal braces in prompt text
 must therefore be doubled.
 """
